@@ -1,2 +1,2 @@
 # shorty
-URL Shortening Platform usinng Spring Boot
+URL Shortening Platform using Spring Boot
