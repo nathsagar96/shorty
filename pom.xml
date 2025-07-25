@@ -12,7 +12,7 @@
 
     <groupId>com.shorty</groupId>
     <artifactId>shorty</artifactId>
-    <version>0.0.2-SNAPSHOT</version>
+    <version>0.0.3-SNAPSHOT</version>
     <name>shorty</name>
     <description>URL Shortening Platform</description>
 

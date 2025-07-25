@@ -4,11 +4,14 @@ import com.shorty.common.exception.ResourceNotFoundException;
 import com.shorty.common.exception.ValidationException;
 import com.shorty.common.util.UrlUtils;
 import com.shorty.users.User;
+import com.shorty.users.UserRepository;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,15 +20,30 @@ import org.springframework.transaction.annotation.Transactional;
 public class UrlService {
 
   private final UrlRepository urlRepository;
+  private final UserRepository userRepository;
   private final UrlUtils urlUtils;
+  private final PasswordEncoder passwordEncoder;
 
-  public UrlService(UrlRepository urlRepository, UrlUtils urlUtils) {
+  public UrlService(
+      UrlRepository urlRepository,
+      UserRepository userRepository,
+      UrlUtils urlUtils,
+      PasswordEncoder passwordEncoder) {
     this.urlRepository = urlRepository;
+    this.userRepository = userRepository;
     this.urlUtils = urlUtils;
+    this.passwordEncoder = passwordEncoder;
   }
 
   public Url createShortUrl(
-      String originalUrl, String customCode, UrlVisibility visibility, User user) {
+      String originalUrl,
+      String customCode,
+      UrlVisibility visibility,
+      LocalDateTime expiresAt,
+      Integer clickLimit,
+      String description,
+      String password,
+      User user) {
     if (!urlUtils.isValidUrl(originalUrl)) {
       throw new ValidationException("Invalid URL format");
     }
@@ -34,21 +52,24 @@ public class UrlService {
 
     String shortCode =
         customCode != null && !customCode.trim().isEmpty()
-            ? customCode.trim()
+            ? validateAndGetCustomCode(customCode.trim())
             : generateUniqueShortCode();
-
-    if (urlRepository.existsByShortCode(shortCode)) {
-      throw new ValidationException("Short code already exists: " + shortCode);
-    }
 
     Url url = new Url(normalizedUrl, shortCode, user);
     url.setVisibility(visibility != null ? visibility : UrlVisibility.PUBLIC);
+    url.setExpiresAt(expiresAt);
+    url.setDescription(description);
+
+    if (clickLimit != null && clickLimit > 0) {
+      url.setClickLimit(clickLimit);
+    }
+
+    if (password != null && !password.trim().isEmpty()) {
+      url.setPasswordProtected(true);
+      url.setPasswordHash(passwordEncoder.encode(password));
+    }
 
     return urlRepository.save(url);
-  }
-
-  public Url createShortUrl(String originalUrl, String customCode) {
-    return createShortUrl(originalUrl, customCode, UrlVisibility.PUBLIC, null);
   }
 
   @Transactional(readOnly = true)
@@ -71,13 +92,22 @@ public class UrlService {
     return urlRepository.findPublicUrls(pageable);
   }
 
-  public Url updateUrl(UUID urlId, UUID userId, String originalUrl, UrlVisibility visibility) {
+  public Url updateUrl(
+      UUID urlId,
+      UUID userId,
+      String originalUrl,
+      UrlVisibility visibility,
+      LocalDateTime expiresAt,
+      Integer clickLimit,
+      String description,
+      String password,
+      Boolean removePassword) {
     Url url =
         urlRepository
             .findById(urlId)
             .orElseThrow(() -> new ResourceNotFoundException("URL not found with id: " + urlId));
 
-    if (url.getUser() == null || !url.getUser().getId().equals(userId)) {
+    if (url.isOwnedBy(findUserById(userId))) {
       throw new ValidationException("You don't have permission to update this URL");
     }
 
@@ -90,6 +120,21 @@ public class UrlService {
 
     if (visibility != null) {
       url.setVisibility(visibility);
+    }
+
+    url.setExpiresAt(expiresAt);
+    url.setDescription(description);
+
+    if (clickLimit != null) {
+      url.setClickLimit(clickLimit);
+    }
+
+    if (removePassword != null && removePassword) {
+      url.setPasswordProtected(false);
+      url.setPasswordHash(null);
+    } else if (password != null && !password.trim().isEmpty()) {
+      url.setPasswordProtected(true);
+      url.setPasswordHash(passwordEncoder.encode(password));
     }
 
     return urlRepository.save(url);
@@ -130,6 +175,94 @@ public class UrlService {
   @Transactional(readOnly = true)
   public long getUserActiveUrlCount(UUID userId) {
     return urlRepository.countActiveUrlsByUserId(userId);
+  }
+
+  public boolean verifyUrlPassword(String shortCode, String password) {
+    Optional<Url> urlOpt = urlRepository.findByShortCodeAndActiveTrue(shortCode);
+    if (urlOpt.isEmpty()) {
+      return false;
+    }
+
+    Url url = urlOpt.get();
+    if (!url.isPasswordProtected()) {
+      return true;
+    }
+
+    return password != null && passwordEncoder.matches(password, url.getPasswordHash());
+  }
+
+  @Transactional(readOnly = true)
+  public List<Url> getUrlsExpiringSoon(UUID userId, int hours) {
+    LocalDateTime threshold = LocalDateTime.now().plusHours(hours);
+    return urlRepository.findUrlsExpiringBefore(userId, threshold);
+  }
+
+  public int cleanupExpiredUrls() {
+    LocalDateTime now = LocalDateTime.now();
+    List<Url> expiredUrls = urlRepository.findExpiredUrls(now);
+
+    expiredUrls.forEach(url -> url.setActive(false));
+    urlRepository.saveAll(expiredUrls);
+
+    return expiredUrls.size();
+  }
+
+  public Url resetClickCount(UUID urlId, UUID userId) {
+    Url url =
+        urlRepository
+            .findById(urlId)
+            .orElseThrow(() -> new ResourceNotFoundException("URL not found with id: " + urlId));
+
+    if (url.isOwnedBy(findUserById(userId))) {
+      throw new ValidationException("You don't have permission to reset this URL's click count");
+    }
+
+    url.setClickCount(0);
+    return urlRepository.save(url);
+  }
+
+  public void logClickCount(UUID urlId) {
+    Url url =
+        urlRepository
+            .findById(urlId)
+            .orElseThrow(() -> new ResourceNotFoundException("URL not found with id: " + urlId));
+
+    url.incrementClickCount();
+    urlRepository.save(url);
+  }
+
+  public Url extendExpiration(UUID urlId, UUID userId, LocalDateTime newExpirationDate) {
+    Url url =
+        urlRepository
+            .findById(urlId)
+            .orElseThrow(() -> new ResourceNotFoundException("URL not found with id: " + urlId));
+
+    if (url.isOwnedBy(findUserById(userId))) {
+      throw new ValidationException("You don't have permission to extend this URL's expiration");
+    }
+
+    if (newExpirationDate != null && newExpirationDate.isBefore(LocalDateTime.now())) {
+      throw new ValidationException("New expiration date must be in the future");
+    }
+
+    url.setExpiresAt(newExpirationDate);
+    return urlRepository.save(url);
+  }
+
+  private String validateAndGetCustomCode(String customCode) {
+    if (customCode.length() < 3) {
+      throw new ValidationException("Custom code must be at least 3 characters long");
+    }
+
+    if (urlRepository.existsByShortCode(customCode)) {
+      throw new ValidationException("Custom code already exists: " + customCode);
+    }
+
+    return customCode;
+  }
+
+  private User findUserById(UUID userId) {
+    return userRepository.findById(userId).get();
   }
 
   private String generateUniqueShortCode() {

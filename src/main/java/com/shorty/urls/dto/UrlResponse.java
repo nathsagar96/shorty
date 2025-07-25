@@ -14,7 +14,15 @@ public record UrlResponse(
     LocalDateTime updatedAt,
     boolean active,
     UrlVisibility visibility,
-    String ownerEmail) {
+    String ownerEmail,
+    LocalDateTime expiresAt,
+    boolean expired,
+    int clickLimit,
+    int clickCount,
+    int remainingClicks,
+    String description,
+    boolean passwordProtected,
+    UrlStats stats) {
   public static UrlResponse from(Url url, String baseUrl) {
     return new UrlResponse(
         url.getId(),
@@ -25,6 +33,14 @@ public record UrlResponse(
         url.getUpdatedAt(),
         url.isActive(),
         url.getVisibility(),
-        url.getUser() != null ? url.getUser().getEmail() : null);
+        url.getUser() != null ? url.getUser().getEmail() : null,
+        url.getExpiresAt(),
+        url.isExpired(),
+        url.getClickLimit(),
+        url.getClickCount(),
+        url.getRemainingClicks(),
+        url.getDescription(),
+        url.isPasswordProtected(),
+        new UrlStats(url.isAccessible(), url.isClickLimitReached()));
   }
 }
