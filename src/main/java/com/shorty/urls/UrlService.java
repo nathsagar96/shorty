@@ -1,26 +1,31 @@
 package com.shorty.urls;
 
+import com.shorty.common.exception.ResourceNotFoundException;
+import com.shorty.common.exception.ValidationException;
 import com.shorty.common.util.UrlUtils;
-import com.shorty.common.util.exception.ResourceNotFoundException;
-import com.shorty.common.util.exception.ValidationException;
+import com.shorty.users.User;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class UrlService {
 
-  private final Map<String, Url> urlsByShortCode = new ConcurrentHashMap<>();
-  private final Map<String, Url> urlsById = new ConcurrentHashMap<>();
+  private final UrlRepository urlRepository;
   private final UrlUtils urlUtils;
 
-  public UrlService(UrlUtils urlUtils) {
+  public UrlService(UrlRepository urlRepository, UrlUtils urlUtils) {
+    this.urlRepository = urlRepository;
     this.urlUtils = urlUtils;
   }
 
-  public Url createShortUrl(String originalUrl, String customCode) {
+  public Url createShortUrl(
+      String originalUrl, String customCode, UrlVisibility visibility, User user) {
     if (!urlUtils.isValidUrl(originalUrl)) {
       throw new ValidationException("Invalid URL format");
     }
@@ -32,41 +37,99 @@ public class UrlService {
             ? customCode.trim()
             : generateUniqueShortCode();
 
-    if (urlsByShortCode.containsKey(shortCode)) {
+    if (urlRepository.existsByShortCode(shortCode)) {
       throw new ValidationException("Short code already exists: " + shortCode);
     }
 
-    Url url = Url.create(normalizedUrl, shortCode);
-    urlsByShortCode.put(shortCode, url);
-    urlsById.put(url.id(), url);
+    Url url = new Url(normalizedUrl, shortCode, user);
+    url.setVisibility(visibility != null ? visibility : UrlVisibility.PUBLIC);
 
-    return url;
+    return urlRepository.save(url);
   }
 
+  public Url createShortUrl(String originalUrl, String customCode) {
+    return createShortUrl(originalUrl, customCode, UrlVisibility.PUBLIC, null);
+  }
+
+  @Transactional(readOnly = true)
   public Optional<Url> findByShortCode(String shortCode) {
-    Url url = urlsByShortCode.get(shortCode);
-    return url != null && url.isActive() ? Optional.of(url) : Optional.empty();
+    return urlRepository.findByShortCodeAndActiveTrue(shortCode);
   }
 
-  public List<Url> getAllUrls() {
-    return List.copyOf(urlsById.values());
+  @Transactional(readOnly = true)
+  public Page<Url> getUserUrls(UUID userId, Pageable pageable) {
+    return urlRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
   }
 
-  public Url updateUrlStatus(String id, boolean active) {
-    Url existingUrl = urlsById.get(id);
-    if (existingUrl == null) {
-      throw new ResourceNotFoundException("URL not found with id: " + id);
+  @Transactional(readOnly = true)
+  public List<Url> getUserUrls(UUID userId) {
+    return urlRepository.findByUserIdOrderByCreatedAtDesc(userId);
+  }
+
+  @Transactional(readOnly = true)
+  public Page<Url> getPublicUrls(Pageable pageable) {
+    return urlRepository.findPublicUrls(pageable);
+  }
+
+  public Url updateUrl(UUID urlId, UUID userId, String originalUrl, UrlVisibility visibility) {
+    Url url =
+        urlRepository
+            .findById(urlId)
+            .orElseThrow(() -> new ResourceNotFoundException("URL not found with id: " + urlId));
+
+    if (url.getUser() == null || !url.getUser().getId().equals(userId)) {
+      throw new ValidationException("You don't have permission to update this URL");
     }
 
-    Url updatedUrl = existingUrl.withActiveStatus(active);
-    urlsById.put(id, updatedUrl);
-    urlsByShortCode.put(updatedUrl.shortCode(), updatedUrl);
+    if (originalUrl != null && !originalUrl.equals(url.getOriginalUrl())) {
+      if (!urlUtils.isValidUrl(originalUrl)) {
+        throw new ValidationException("Invalid URL format");
+      }
+      url.setOriginalUrl(urlUtils.normalizeUrl(originalUrl));
+    }
 
-    return updatedUrl;
+    if (visibility != null) {
+      url.setVisibility(visibility);
+    }
+
+    return urlRepository.save(url);
   }
 
+  public void deleteUrl(UUID urlId, UUID userId) {
+    Url url =
+        urlRepository
+            .findById(urlId)
+            .orElseThrow(() -> new ResourceNotFoundException("URL not found with id: " + urlId));
+
+    if (url.getUser() == null || !url.getUser().getId().equals(userId)) {
+      throw new ValidationException("You don't have permission to delete this URL");
+    }
+
+    urlRepository.delete(url);
+  }
+
+  public Url toggleUrlStatus(UUID urlId, UUID userId) {
+    Url url =
+        urlRepository
+            .findById(urlId)
+            .orElseThrow(() -> new ResourceNotFoundException("URL not found with id: " + urlId));
+
+    if (url.getUser() == null || !url.getUser().getId().equals(userId)) {
+      throw new ValidationException("You don't have permission to modify this URL");
+    }
+
+    url.setActive(!url.isActive());
+    return urlRepository.save(url);
+  }
+
+  @Transactional(readOnly = true)
   public long getUrlCount() {
-    return urlsById.size();
+    return urlRepository.count();
+  }
+
+  @Transactional(readOnly = true)
+  public long getUserActiveUrlCount(UUID userId) {
+    return urlRepository.countActiveUrlsByUserId(userId);
   }
 
   private String generateUniqueShortCode() {
@@ -78,9 +141,9 @@ public class UrlService {
       if (attempts > 10) {
         shortCode = urlUtils.generateShortCode(8);
       }
-    } while (urlsByShortCode.containsKey(shortCode) && attempts < 20);
+    } while (urlRepository.existsByShortCode(shortCode) && attempts < 20);
 
-    if (urlsByShortCode.containsKey(shortCode)) {
+    if (urlRepository.existsByShortCode(shortCode)) {
       throw new RuntimeException("Unable to generate unique short code");
     }
 

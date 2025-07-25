@@ -1,5 +1,6 @@
 package com.shorty.urls.dto;
 
+import com.shorty.urls.UrlVisibility;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -13,4 +14,12 @@ public record CreateUrlRequest(
         @Pattern(
             regexp = "^[a-zA-Z0-9-_]*$",
             message = "Custom code can only contain letters, numbers, hyphens, and underscores")
-        String customCode) {}
+        String customCode,
+    UrlVisibility visibility) {
+  public CreateUrlRequest {
+    // Set default visibility if null
+    if (visibility == null) {
+      visibility = UrlVisibility.PUBLIC;
+    }
+  }
+}

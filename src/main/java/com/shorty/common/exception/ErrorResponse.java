@@ -1,4 +1,4 @@
-package com.shorty.common.util.exception;
+package com.shorty.common.exception;
 
 import java.time.LocalDateTime;
 

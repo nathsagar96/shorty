@@ -1,5 +1,6 @@
-package com.shorty.common.util.exception;
+package com.shorty.common.exception;
 
+import io.jsonwebtoken.JwtException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,5 +42,20 @@ public class GlobalExceptionHandler {
               errors.put(fieldName, errorMessage);
             });
     return ResponseEntity.badRequest().body(errors);
+  }
+
+  @ExceptionHandler(JwtException.class)
+  public ResponseEntity<ErrorResponse> handleJwtException(JwtException e) {
+    ErrorResponse error;
+    if (e instanceof io.jsonwebtoken.security.SignatureException) {
+      error = new ErrorResponse("INVALID_JWT_SIGNATURE", e.getMessage(), LocalDateTime.now());
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    } else if (e instanceof io.jsonwebtoken.MalformedJwtException) {
+      error = new ErrorResponse("MALFORMED_JWT", e.getMessage(), LocalDateTime.now());
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    } else {
+      error = new ErrorResponse("INVALID_JWT_TOKEN", e.getMessage(), LocalDateTime.now());
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    }
   }
 }

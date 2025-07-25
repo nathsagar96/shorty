@@ -23,7 +23,7 @@ public class RedirectionController {
     Optional<Url> url = urlService.findByShortCode(shortCode);
 
     if (url.isPresent()) {
-      response.sendRedirect(url.get().originalUrl());
+      response.sendRedirect(url.get().getOriginalUrl());
     } else {
       response.sendError(HttpStatus.NOT_FOUND.value(), "URL not found");
     }

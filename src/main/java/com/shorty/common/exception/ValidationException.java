@@ -1,4 +1,4 @@
-package com.shorty.common.util.exception;
+package com.shorty.common.exception;
 
 public class ValidationException extends RuntimeException {
   public ValidationException(String message) {
