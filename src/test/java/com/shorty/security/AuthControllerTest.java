@@ -45,7 +45,7 @@ class AuthControllerTest {
             LocalDateTime.now(),
             0);
 
-    authenticationResponse = AuthenticationResponse.create("jwt-token-string", 3600L, userResponse);
+    authenticationResponse = AuthenticationResponse.create("jwt-token-string", 3600L);
   }
 
   @Test
@@ -65,8 +65,7 @@ class AuthControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.token").value("jwt-token-string"))
-        .andExpect(jsonPath("$.tokenType").value("Bearer"))
-        .andExpect(jsonPath("$.user.email").value("test@example.com"));
+        .andExpect(jsonPath("$.tokenType").value("Bearer"));
 
     // verify interaction
     verify(authenticationService).register(any(UserRegistrationRequest.class));
@@ -87,7 +86,7 @@ class AuthControllerTest {
         .andExpect(status().isBadRequest());
 
     // verify no interaction with service
-    verify(authenticationService, never()).register(any());
+    verify(authenticationService, never()).register(any(UserRegistrationRequest.class));
   }
 
   @Test
@@ -105,7 +104,7 @@ class AuthControllerTest {
         .andExpect(status().isBadRequest());
 
     // verify no interaction with service
-    verify(authenticationService, never()).register(any());
+    verify(authenticationService, never()).register(any(UserRegistrationRequest.class));
   }
 
   @Test
@@ -123,8 +122,7 @@ class AuthControllerTest {
                 .content(objectMapper.writeValueAsString(validRequest)))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.token").value("jwt-token-string"))
-        .andExpect(jsonPath("$.user.email").value("test@example.com"));
+        .andExpect(jsonPath("$.token").value("jwt-token-string"));
 
     // verify interaction
     verify(authenticationService).authenticate(any(UserLoginRequest.class));
@@ -144,6 +142,6 @@ class AuthControllerTest {
         .andExpect(status().isBadRequest());
 
     // verify no interaction with service
-    verify(authenticationService, never()).authenticate(any());
+    verify(authenticationService, never()).authenticate(any(UserLoginRequest.class));
   }
 }

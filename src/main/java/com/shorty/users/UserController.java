@@ -7,7 +7,6 @@ import com.shorty.urls.dto.UrlResponse;
 import com.shorty.users.dto.ChangePasswordRequest;
 import com.shorty.users.dto.UpdateProfileRequest;
 import com.shorty.users.dto.UserResponse;
-import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -34,23 +33,14 @@ public class UserController {
   }
 
   @GetMapping("/profile")
-  public ResponseEntity<UserResponse> getCurrentUserProfile(
+  public ResponseEntity<UserResponse> getUserProfile(
       @AuthenticationPrincipal CustomUserDetails userDetails) {
     UserResponse user = userService.getUserProfile(userDetails.user().getId());
     return ResponseEntity.ok(user);
   }
 
   @GetMapping("/urls")
-  public ResponseEntity<List<UrlResponse>> getCurrentUserUrls(
-      @AuthenticationPrincipal CustomUserDetails userDetails) {
-    List<Url> urls = urlService.getUserUrls(userDetails.user().getId());
-    List<UrlResponse> response = urls.stream().map(url -> UrlResponse.from(url, baseUrl)).toList();
-
-    return ResponseEntity.ok(response);
-  }
-
-  @GetMapping("/urls/paginated")
-  public ResponseEntity<Page<UrlResponse>> getCurrentUserUrlsPaginated(
+  public ResponseEntity<Page<UrlResponse>> getUserUrls(
       @AuthenticationPrincipal CustomUserDetails userDetails,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size) {

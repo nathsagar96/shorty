@@ -49,23 +49,30 @@ class UrlControllerTest {
   @BeforeEach
   void setUp() throws Exception {
     objectMapper.registerModule(new JavaTimeModule());
-    User user = new User("test@example.com", "Test", "User", "hashedPassword");
-    url = new Url("http://example.com", "example", user);
 
-    try {
-      var idField = url.getClass().getDeclaredField("id");
-      idField.setAccessible(true);
-      idField.set(url, UUID.randomUUID());
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    User user =
+        User.builder()
+            .id(UUID.randomUUID())
+            .email("test@example.com")
+            .firstName("Test")
+            .lastName("User")
+            .password("hashedPassword")
+            .build();
+
+    url =
+        Url.builder()
+            .id(UUID.randomUUID())
+            .originalUrl("http://example.com")
+            .shortCode("example")
+            .user(user)
+            .build();
 
     validResult = new UrlValidationService.ValidationResult();
     invalidResult = new UrlValidationService.ValidationResult();
     invalidResult.addError("Invalid URL");
 
-    when(validationService.validateUrl(any(String.class))).thenReturn(validResult);
-    when(validationService.validateCustomCode(any(String.class))).thenReturn(validResult);
+    when(validationService.validateUrl(anyString())).thenReturn(validResult);
+    when(validationService.validateCustomCode(anyString())).thenReturn(validResult);
     when(validationService.validateExpirationDate(any(LocalDateTime.class)))
         .thenReturn(validResult);
   }
@@ -80,17 +87,13 @@ class UrlControllerTest {
             "example",
             UrlVisibility.PUBLIC,
             LocalDateTime.now().plusDays(1),
-            1,
-            "This is a valid URL",
-            "password123");
+            1);
     when(urlService.createShortUrl(
-            any(String.class),
-            any(String.class),
+            anyString(),
+            anyString(),
             any(UrlVisibility.class),
             any(LocalDateTime.class),
-            any(Integer.class),
-            any(String.class),
-            any(String.class),
+            anyInt(),
             any(User.class)))
         .thenReturn(url);
 
@@ -109,13 +112,11 @@ class UrlControllerTest {
     // verify interaction
     verify(urlService)
         .createShortUrl(
-            any(String.class),
-            any(String.class),
+            anyString(),
+            anyString(),
             any(UrlVisibility.class),
             any(LocalDateTime.class),
-            any(Integer.class),
-            any(String.class),
-            any(String.class),
+            anyInt(),
             any(User.class));
   }
 
@@ -129,11 +130,9 @@ class UrlControllerTest {
             "example",
             UrlVisibility.PUBLIC,
             LocalDateTime.now().plusDays(1),
-            1,
-            "This is a valid URL",
-            "password123");
+            1);
 
-    when(validationService.validateUrl(any(String.class))).thenReturn(invalidResult);
+    when(validationService.validateUrl(anyString())).thenReturn(invalidResult);
 
     // when & then
     mockMvc
@@ -147,13 +146,11 @@ class UrlControllerTest {
     // verify no interaction with service
     verify(urlService, never())
         .createShortUrl(
-            any(String.class),
-            any(String.class),
+            anyString(),
+            anyString(),
             any(UrlVisibility.class),
             any(LocalDateTime.class),
-            any(Integer.class),
-            any(String.class),
-            any(String.class),
+            anyInt(),
             any(User.class));
   }
 
@@ -201,13 +198,7 @@ class UrlControllerTest {
     // given
     UpdateUrlRequest validRequest =
         new UpdateUrlRequest(
-            "http://example.com",
-            UrlVisibility.PRIVATE,
-            LocalDateTime.now().plusDays(1),
-            1,
-            "This is a valid URL",
-            "password123",
-            false);
+            "http://example.com", UrlVisibility.PRIVATE, LocalDateTime.now().plusDays(1), 1);
     url.setVisibility(UrlVisibility.PRIVATE);
     when(urlService.updateUrl(
             any(UUID.class),
@@ -215,10 +206,7 @@ class UrlControllerTest {
             any(String.class),
             any(UrlVisibility.class),
             any(LocalDateTime.class),
-            any(Integer.class),
-            any(String.class),
-            any(String.class),
-            any(Boolean.class)))
+            anyInt()))
         .thenReturn(url);
 
     // when & then
@@ -239,13 +227,10 @@ class UrlControllerTest {
         .updateUrl(
             any(UUID.class),
             any(UUID.class),
-            any(String.class),
+            anyString(),
             any(UrlVisibility.class),
             any(LocalDateTime.class),
-            any(Integer.class),
-            any(String.class),
-            any(String.class),
-            any(Boolean.class));
+            anyInt());
   }
 
   @Test
@@ -307,20 +292,15 @@ class UrlControllerTest {
             "example",
             UrlVisibility.PUBLIC,
             LocalDateTime.now().plusDays(7),
-            1,
-            "This URL expires in 7 days",
-            "password123");
+            1);
     url.setShortCode("expiring123");
-    url.setDescription("This URL expires in 7 days");
     url.setExpiresAt(LocalDateTime.now().plusDays(7));
     when(urlService.createShortUrl(
-            any(String.class),
-            any(String.class),
+            anyString(),
+            anyString(),
             any(UrlVisibility.class),
             any(LocalDateTime.class),
-            any(Integer.class),
-            any(String.class),
-            any(String.class),
+            anyInt(),
             any(User.class)))
         .thenReturn(url);
 
@@ -333,7 +313,6 @@ class UrlControllerTest {
                 .with(csrf()))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.shortCode").value("expiring123"))
-        .andExpect(jsonPath("$.description").value("This URL expires in 7 days"))
         .andExpect(jsonPath("$.expiresAt").isNotEmpty())
         .andExpect(jsonPath("$.expired").value(false));
   }
@@ -348,19 +327,15 @@ class UrlControllerTest {
             "example",
             UrlVisibility.PUBLIC,
             LocalDateTime.now().plusDays(1),
-            10,
-            "This is a valid URL",
-            "password123");
+            10);
     url.setShortCode("limited123");
     url.setClickLimit(10);
     when(urlService.createShortUrl(
-            any(String.class),
-            any(String.class),
+            anyString(),
+            anyString(),
             any(UrlVisibility.class),
             any(LocalDateTime.class),
-            any(Integer.class),
-            any(String.class),
-            any(String.class),
+            anyInt(),
             any(User.class)))
         .thenReturn(url);
 
@@ -375,44 +350,6 @@ class UrlControllerTest {
         .andExpect(jsonPath("$.shortCode").value("limited123"))
         .andExpect(jsonPath("$.clickLimit").value(10))
         .andExpect(jsonPath("$.remainingClicks").value(10));
-  }
-
-  @Test
-  @WithUserDetails("test@example.com")
-  void createShortUrl_WithPassword_CreatesSuccessfully() throws Exception {
-    // Given
-    CreateUrlRequest request =
-        new CreateUrlRequest(
-            "https://secret.com",
-            "secret123",
-            UrlVisibility.PRIVATE,
-            LocalDateTime.now().plusDays(1),
-            1,
-            "Password protected URL",
-            "secretpassword");
-    url.setShortCode("secret123");
-    url.setPasswordProtected(true);
-    when(urlService.createShortUrl(
-            any(String.class),
-            any(String.class),
-            any(UrlVisibility.class),
-            any(LocalDateTime.class),
-            any(Integer.class),
-            any(String.class),
-            any(String.class),
-            any(User.class)))
-        .thenReturn(url);
-
-    // When & Then
-    mockMvc
-        .perform(
-            post("/api/v1/urls")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-                .with(csrf()))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.shortCode").value("secret123"))
-        .andExpect(jsonPath("$.passwordProtected").value(true));
   }
 
   @Test
@@ -438,7 +375,7 @@ class UrlControllerTest {
   void validateUrl_InvalidUrl_ReturnsErrors() throws Exception {
     // Given
     Map<String, String> request = Map.of("url", "javascript:alert('xss')");
-    when(validationService.validateUrl(any(String.class))).thenReturn(invalidResult);
+    when(validationService.validateUrl(anyString())).thenReturn(invalidResult);
 
     // When & Then
     mockMvc
@@ -462,17 +399,13 @@ class UrlControllerTest {
             "clicktest123",
             UrlVisibility.PUBLIC,
             LocalDateTime.now().plusDays(1),
-            1,
-            "Test URL",
-            "password123");
+            1);
     when(urlService.createShortUrl(
-            any(String.class),
-            any(String.class),
+            anyString(),
+            anyString(),
             any(UrlVisibility.class),
             any(LocalDateTime.class),
-            any(Integer.class),
-            any(String.class),
-            any(String.class),
+            anyInt(),
             any(User.class)))
         .thenReturn(url);
 

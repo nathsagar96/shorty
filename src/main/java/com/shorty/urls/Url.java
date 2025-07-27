@@ -4,9 +4,15 @@ import com.shorty.users.User;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(
     name = "urls",
@@ -29,28 +35,24 @@ public class Url {
   @Column(nullable = false, unique = true, length = 50)
   private String shortCode;
 
+  @Builder.Default
   @Column(nullable = false)
   private boolean active = true;
 
+  @Builder.Default
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private UrlVisibility visibility = UrlVisibility.PUBLIC;
 
   private LocalDateTime expiresAt;
 
+  @Builder.Default
   @Column(nullable = false)
-  private int clickLimit = -1; // -1 means unlimited
+  private int clickLimit = -1;
 
+  @Builder.Default
   @Column(nullable = false)
   private int clickCount = 0;
-
-  @Column(length = 500)
-  private String description;
-
-  @Column(nullable = false)
-  private boolean passwordProtected = false;
-
-  @Column private String passwordHash;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "user_id")
@@ -61,8 +63,6 @@ public class Url {
   private LocalDateTime createdAt;
 
   @UpdateTimestamp private LocalDateTime updatedAt;
-
-  protected Url() {}
 
   public Url(String originalUrl, String shortCode, User user) {
     this.originalUrl = originalUrl;
@@ -96,107 +96,7 @@ public class Url {
   }
 
   public int getRemainingClicks() {
-    if (clickLimit < 0) return -1; // Unlimited
+    if (clickLimit < 0) return -1;
     return Math.max(0, clickLimit - clickCount);
-  }
-
-  public UUID getId() {
-    return id;
-  }
-
-  public String getOriginalUrl() {
-    return originalUrl;
-  }
-
-  public void setOriginalUrl(String originalUrl) {
-    this.originalUrl = originalUrl;
-  }
-
-  public String getShortCode() {
-    return shortCode;
-  }
-
-  public void setShortCode(String shortCode) {
-    this.shortCode = shortCode;
-  }
-
-  public boolean isActive() {
-    return active;
-  }
-
-  public void setActive(boolean active) {
-    this.active = active;
-  }
-
-  public UrlVisibility getVisibility() {
-    return visibility;
-  }
-
-  public void setVisibility(UrlVisibility visibility) {
-    this.visibility = visibility;
-  }
-
-  public LocalDateTime getExpiresAt() {
-    return expiresAt;
-  }
-
-  public void setExpiresAt(LocalDateTime expiresAt) {
-    this.expiresAt = expiresAt;
-  }
-
-  public int getClickLimit() {
-    return clickLimit;
-  }
-
-  public void setClickLimit(int clickLimit) {
-    this.clickLimit = clickLimit;
-  }
-
-  public int getClickCount() {
-    return clickCount;
-  }
-
-  public void setClickCount(int clickCount) {
-    this.clickCount = clickCount;
-  }
-
-  public String getDescription() {
-    return description;
-  }
-
-  public void setDescription(String description) {
-    this.description = description;
-  }
-
-  public boolean isPasswordProtected() {
-    return passwordProtected;
-  }
-
-  public void setPasswordProtected(boolean passwordProtected) {
-    this.passwordProtected = passwordProtected;
-  }
-
-  public String getPasswordHash() {
-    return passwordHash;
-  }
-
-  public void setPasswordHash(String passwordHash) {
-    this.passwordHash = passwordHash;
-  }
-
-  public User getUser() {
-    return user;
-  }
-
-  public void setUser(User user) {
-    this.user = user;
-  }
-
-  public LocalDateTime getCreatedAt() {
-    return createdAt;
-  }
-
-  public LocalDateTime getUpdatedAt() {
-    return updatedAt;
   }
 }

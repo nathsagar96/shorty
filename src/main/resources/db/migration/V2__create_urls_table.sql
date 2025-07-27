@@ -1,6 +1,6 @@
 CREATE TABLE urls
 (
-    id          UUID PRIMARY KEY,
+    id           UUID PRIMARY KEY,
     original_url VARCHAR(2048) NOT NULL,
     short_code   VARCHAR(255) UNIQUE NOT NULL,
     active       BOOLEAN             NOT NULL DEFAULT TRUE,

@@ -7,7 +7,9 @@ import static org.mockito.Mockito.*;
 import com.shorty.common.exception.ValidationException;
 import com.shorty.users.dto.UserRegistrationRequest;
 import com.shorty.users.dto.UserResponse;
+import java.util.ArrayList;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,9 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 class UserServiceTest {
 
   @Mock private UserRepository userRepository;
-
   @Mock private PasswordEncoder passwordEncoder;
-
   @InjectMocks private UserService userService;
 
   @Test
@@ -30,10 +30,18 @@ class UserServiceTest {
     UserRegistrationRequest request =
         new UserRegistrationRequest("test@example.com", "John", "Doe", "password123");
 
-    User savedUser = new User("test@example.com", "John", "Doe", "hashedPassword");
+    User savedUser =
+        User.builder()
+            .id(UUID.randomUUID())
+            .email(request.email())
+            .firstName(request.firstName())
+            .lastName(request.lastName())
+            .password(request.password())
+            .urls(new ArrayList<>())
+            .build();
 
-    when(userRepository.existsByEmail(request.email())).thenReturn(false);
-    when(passwordEncoder.encode(request.password())).thenReturn("hashedPassword");
+    when(userRepository.existsByEmail(anyString())).thenReturn(false);
+    when(passwordEncoder.encode(anyString())).thenReturn("hashedPassword");
     when(userRepository.save(any(User.class))).thenReturn(savedUser);
 
     // When
@@ -56,14 +64,14 @@ class UserServiceTest {
     UserRegistrationRequest request =
         new UserRegistrationRequest("test@example.com", "John", "Doe", "password123");
 
-    when(userRepository.existsByEmail(request.email())).thenReturn(true);
+    when(userRepository.existsByEmail(anyString())).thenReturn(true);
 
     // When & Then
     assertThatThrownBy(() -> userService.registerUser(request))
         .isInstanceOf(ValidationException.class)
         .hasMessage("User already exists with email: " + request.email());
 
-    verify(userRepository).existsByEmail(request.email());
+    verify(userRepository).existsByEmail(anyString());
     verify(userRepository, never()).save(any(User.class));
   }
 
@@ -73,7 +81,7 @@ class UserServiceTest {
     String email = "test@example.com";
     User user = new User(email, "John", "Doe", "hashedPassword");
 
-    when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+    when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(user));
 
     // When
     Optional<User> result = userService.findByEmail(email);
@@ -82,6 +90,6 @@ class UserServiceTest {
     assertThat(result).isPresent();
     assertThat(result.get().getEmail()).isEqualTo(email);
 
-    verify(userRepository).findByEmail(email);
+    verify(userRepository).findByEmail(anyString());
   }
 }

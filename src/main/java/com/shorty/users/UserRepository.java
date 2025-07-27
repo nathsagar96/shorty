@@ -13,9 +13,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
   boolean existsByEmail(String email);
 
-  @Query("SELECT COUNT(u) FROM User u WHERE u.enabled = true")
-  long countEnabledUsers();
-
   @Query("SELECT u FROM User u LEFT JOIN FETCH u.urls WHERE u.id = :id")
   Optional<User> findByIdWithUrls(UUID id);
 }

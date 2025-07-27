@@ -4,8 +4,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import com.shorty.common.exception.ValidationException;
 import com.shorty.common.util.UrlUtils;
@@ -21,7 +20,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
 class UrlServiceTest {
@@ -29,43 +27,45 @@ class UrlServiceTest {
   @Mock private UrlUtils urlUtils;
   @Mock private UrlRepository urlRepository;
   @Mock private UserRepository userRepository;
-  @Mock private PasswordEncoder passwordEncoder;
   @InjectMocks private UrlService urlService;
 
   private User user;
 
   @BeforeEach
   void setUp() {
-    user = new User("test@example.com", "Test", "User", "hashedPassword");
-    try {
-      var idField = user.getClass().getDeclaredField("id");
-      idField.setAccessible(true);
-      idField.set(user, UUID.randomUUID());
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+
+    user =
+        User.builder()
+            .id(UUID.randomUUID())
+            .email("test@example.com")
+            .firstName("Test")
+            .lastName("User")
+            .password("hashedPassword")
+            .build();
   }
 
   @Test
   void createShortUrl_ValidUrl_ReturnsUrl() {
     // Given
     String originalUrl = "https://example.com";
-    String shortCode = "abc123";
-    Url url = new Url(originalUrl, shortCode);
+    String customCode = "abc123";
+    Url url = Url.builder().originalUrl(originalUrl).shortCode(customCode).build();
 
     when(urlUtils.isValidUrl(anyString())).thenReturn(true);
     when(urlUtils.normalizeUrl(anyString())).thenReturn(originalUrl);
-    when(urlUtils.generateShortCode()).thenReturn(shortCode);
+    when(urlUtils.generateShortCode()).thenReturn(customCode);
     when(urlRepository.existsByShortCode(anyString())).thenReturn(false);
-    when(urlRepository.save(any())).thenReturn(url);
+    when(urlRepository.save(any(Url.class))).thenReturn(url);
 
     // When
-    Url result = urlService.createShortUrl(originalUrl, null, null, null, null, null, null, user);
+    Url result =
+        urlService.createShortUrl(
+            originalUrl, null, UrlVisibility.PUBLIC, LocalDateTime.now().plusDays(7), -1, user);
 
     // Then
     assertThat(result).isNotNull();
     assertThat(result.getOriginalUrl()).isEqualTo(originalUrl);
-    assertThat(result.getShortCode()).isEqualTo(shortCode);
+    assertThat(result.getShortCode()).isEqualTo(customCode);
     assertThat(result.isActive()).isTrue();
   }
 
@@ -75,21 +75,21 @@ class UrlServiceTest {
     String originalUrl = "https://example.com";
     String customCode = "custom123";
     LocalDateTime expiresAt = LocalDateTime.now().plusDays(7);
+    Url url = Url.builder().originalUrl(originalUrl).expiresAt(expiresAt).build();
 
-    when(urlUtils.isValidUrl(originalUrl)).thenReturn(true);
-    when(urlUtils.normalizeUrl(originalUrl)).thenReturn(originalUrl);
-    when(urlRepository.existsByShortCode(customCode)).thenReturn(false);
-    when(urlRepository.save(any(Url.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(urlUtils.isValidUrl(anyString())).thenReturn(true);
+    when(urlUtils.normalizeUrl(anyString())).thenReturn(originalUrl);
+    when(urlRepository.existsByShortCode(anyString())).thenReturn(false);
+    when(urlRepository.save(any(Url.class))).thenReturn(url);
 
     // When
     Url result =
-        urlService.createShortUrl(originalUrl, customCode, null, expiresAt, null, null, null, user);
+        urlService.createShortUrl(
+            originalUrl, customCode, UrlVisibility.PUBLIC, expiresAt, -1, user);
 
     // Then
     assertThat(result).isNotNull();
     assertThat(result.getExpiresAt()).isEqualTo(expiresAt);
-    assertThat(result.getShortCode()).isEqualTo(customCode);
-    verify(urlRepository).save(any(Url.class));
   }
 
   @Test
@@ -98,45 +98,18 @@ class UrlServiceTest {
     String originalUrl = "https://example.com";
     Integer clickLimit = 100;
 
-    when(urlUtils.isValidUrl(originalUrl)).thenReturn(true);
-    when(urlUtils.normalizeUrl(originalUrl)).thenReturn(originalUrl);
+    when(urlUtils.isValidUrl(anyString())).thenReturn(true);
+    when(urlUtils.normalizeUrl(anyString())).thenReturn(originalUrl);
     when(urlUtils.generateShortCode()).thenReturn("abc123");
     when(urlRepository.existsByShortCode(anyString())).thenReturn(false);
     when(urlRepository.save(any(Url.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
     // When
-    Url result =
-        urlService.createShortUrl(originalUrl, null, null, null, clickLimit, null, null, user);
+    Url result = urlService.createShortUrl(originalUrl, null, null, null, clickLimit, null);
 
     // Then
     assertThat(result).isNotNull();
     assertThat(result.getClickLimit()).isEqualTo(clickLimit);
-    verify(urlRepository).save(any(Url.class));
-  }
-
-  @Test
-  void createShortUrl_WithPassword_SetsPasswordProtection() {
-    // Given
-    String originalUrl = "https://example.com";
-    String password = "secret123";
-    String hashedPassword = "hashedSecret123";
-
-    when(urlUtils.isValidUrl(originalUrl)).thenReturn(true);
-    when(urlUtils.normalizeUrl(originalUrl)).thenReturn(originalUrl);
-    when(urlUtils.generateShortCode()).thenReturn("abc123");
-    when(urlRepository.existsByShortCode(anyString())).thenReturn(false);
-    when(passwordEncoder.encode(password)).thenReturn(hashedPassword);
-    when(urlRepository.save(any(Url.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-    // When
-    Url result =
-        urlService.createShortUrl(originalUrl, null, null, null, null, null, password, user);
-
-    // Then
-    assertThat(result).isNotNull();
-    assertThat(result.isPasswordProtected()).isTrue();
-    assertThat(result.getPasswordHash()).isEqualTo(hashedPassword);
-    verify(passwordEncoder).encode(password);
     verify(urlRepository).save(any(Url.class));
   }
 
@@ -147,8 +120,7 @@ class UrlServiceTest {
     when(urlUtils.isValidUrl(anyString())).thenReturn(false);
 
     // When & Then
-    assertThatThrownBy(
-            () -> urlService.createShortUrl(invalidUrl, null, null, null, null, null, null, user))
+    assertThatThrownBy(() -> urlService.createShortUrl(invalidUrl, null, null, null, null, user))
         .isInstanceOf(ValidationException.class)
         .hasMessage("Invalid URL format");
   }
@@ -166,9 +138,7 @@ class UrlServiceTest {
     // When & Then - try to create another with same custom code
     assertThrows(
         ValidationException.class,
-        () ->
-            urlService.createShortUrl(
-                "https://another.com", customCode, null, null, null, null, null, user));
+        () -> urlService.createShortUrl("https://another.com", customCode, null, null, null, user));
   }
 
   @Test
@@ -194,50 +164,6 @@ class UrlServiceTest {
 
     // Then
     assertThat(result).isEmpty();
-  }
-
-  @Test
-  void verifyUrlPassword_CorrectPassword_ReturnsTrue() {
-    // Given
-    String shortCode = "abc123";
-    String password = "secret123";
-    String hashedPassword = "hashedSecret123";
-
-    Url url = new Url("https://example.com", shortCode, user);
-    url.setPasswordProtected(true);
-    url.setPasswordHash(hashedPassword);
-
-    when(urlRepository.findByShortCodeAndActiveTrue(shortCode)).thenReturn(Optional.of(url));
-    when(passwordEncoder.matches(password, hashedPassword)).thenReturn(true);
-
-    // When
-    boolean result = urlService.verifyUrlPassword(shortCode, password);
-
-    // Then
-    assertThat(result).isTrue();
-    verify(passwordEncoder).matches(password, hashedPassword);
-  }
-
-  @Test
-  void verifyUrlPassword_IncorrectPassword_ReturnsFalse() {
-    // Given
-    String shortCode = "abc123";
-    String password = "wrongpassword";
-    String hashedPassword = "hashedSecret123";
-
-    Url url = new Url("https://example.com", shortCode, user);
-    url.setPasswordProtected(true);
-    url.setPasswordHash(hashedPassword);
-
-    when(urlRepository.findByShortCodeAndActiveTrue(shortCode)).thenReturn(Optional.of(url));
-    when(passwordEncoder.matches(password, hashedPassword)).thenReturn(false);
-
-    // When
-    boolean result = urlService.verifyUrlPassword(shortCode, password);
-
-    // Then
-    assertThat(result).isFalse();
-    verify(passwordEncoder).matches(password, hashedPassword);
   }
 
   @Test

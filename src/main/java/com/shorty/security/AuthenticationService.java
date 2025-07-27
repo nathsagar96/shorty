@@ -7,24 +7,19 @@ import com.shorty.users.dto.AuthenticationResponse;
 import com.shorty.users.dto.UserLoginRequest;
 import com.shorty.users.dto.UserRegistrationRequest;
 import com.shorty.users.dto.UserResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class AuthenticationService {
 
   private final UserService userService;
   private final JwtService jwtService;
   private final AuthenticationManager authenticationManager;
-
-  public AuthenticationService(
-      UserService userService, JwtService jwtService, AuthenticationManager authenticationManager) {
-    this.userService = userService;
-    this.jwtService = jwtService;
-    this.authenticationManager = authenticationManager;
-  }
 
   public AuthenticationResponse register(UserRegistrationRequest request) {
     UserResponse user = userService.registerUser(request);
@@ -34,7 +29,7 @@ public class AuthenticationService {
 
     String jwtToken = jwtService.generateToken(userDetails);
 
-    return AuthenticationResponse.create(jwtToken, jwtService.getExpirationTime(), user);
+    return AuthenticationResponse.create(jwtToken, jwtService.getExpirationTime());
   }
 
   public AuthenticationResponse authenticate(UserLoginRequest request) {
@@ -53,7 +48,6 @@ public class AuthenticationService {
     CustomUserDetails userDetails = new CustomUserDetails(user);
     String jwtToken = jwtService.generateToken(userDetails);
 
-    return AuthenticationResponse.create(
-        jwtToken, jwtService.getExpirationTime(), UserResponse.from(user));
+    return AuthenticationResponse.create(jwtToken, jwtService.getExpirationTime());
   }
 }

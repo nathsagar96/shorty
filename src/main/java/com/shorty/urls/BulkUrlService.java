@@ -10,20 +10,17 @@ import com.shorty.users.User;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class BulkUrlService {
 
   private final UrlService urlService;
   private final UrlRepository urlRepository;
-
-  public BulkUrlService(UrlService urlService, UrlRepository urlRepository) {
-    this.urlService = urlService;
-    this.urlRepository = urlRepository;
-  }
 
   public BulkOperationResponse<UrlResponse> bulkCreateUrls(
       BulkCreateUrlRequest request, User user, String baseUrl) {
@@ -41,8 +38,6 @@ public class BulkUrlService {
                 urlRequest.visibility(),
                 urlRequest.expiresAt(),
                 urlRequest.clickLimit(),
-                urlRequest.description(),
-                urlRequest.password(),
                 user);
 
         successful.add(UrlResponse.from(createdUrl, baseUrl));

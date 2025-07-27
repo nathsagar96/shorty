@@ -11,7 +11,6 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,17 +21,11 @@ public class UrlService {
   private final UrlRepository urlRepository;
   private final UserRepository userRepository;
   private final UrlUtils urlUtils;
-  private final PasswordEncoder passwordEncoder;
 
-  public UrlService(
-      UrlRepository urlRepository,
-      UserRepository userRepository,
-      UrlUtils urlUtils,
-      PasswordEncoder passwordEncoder) {
+  public UrlService(UrlRepository urlRepository, UserRepository userRepository, UrlUtils urlUtils) {
     this.urlRepository = urlRepository;
     this.userRepository = userRepository;
     this.urlUtils = urlUtils;
-    this.passwordEncoder = passwordEncoder;
   }
 
   public Url createShortUrl(
@@ -41,8 +34,6 @@ public class UrlService {
       UrlVisibility visibility,
       LocalDateTime expiresAt,
       Integer clickLimit,
-      String description,
-      String password,
       User user) {
     if (!urlUtils.isValidUrl(originalUrl)) {
       throw new ValidationException("Invalid URL format");
@@ -58,15 +49,9 @@ public class UrlService {
     Url url = new Url(normalizedUrl, shortCode, user);
     url.setVisibility(visibility != null ? visibility : UrlVisibility.PUBLIC);
     url.setExpiresAt(expiresAt);
-    url.setDescription(description);
 
     if (clickLimit != null && clickLimit > 0) {
       url.setClickLimit(clickLimit);
-    }
-
-    if (password != null && !password.trim().isEmpty()) {
-      url.setPasswordProtected(true);
-      url.setPasswordHash(passwordEncoder.encode(password));
     }
 
     return urlRepository.save(url);
@@ -98,10 +83,7 @@ public class UrlService {
       String originalUrl,
       UrlVisibility visibility,
       LocalDateTime expiresAt,
-      Integer clickLimit,
-      String description,
-      String password,
-      Boolean removePassword) {
+      Integer clickLimit) {
     Url url =
         urlRepository
             .findById(urlId)
@@ -123,18 +105,9 @@ public class UrlService {
     }
 
     url.setExpiresAt(expiresAt);
-    url.setDescription(description);
 
     if (clickLimit != null) {
       url.setClickLimit(clickLimit);
-    }
-
-    if (removePassword != null && removePassword) {
-      url.setPasswordProtected(false);
-      url.setPasswordHash(null);
-    } else if (password != null && !password.trim().isEmpty()) {
-      url.setPasswordProtected(true);
-      url.setPasswordHash(passwordEncoder.encode(password));
     }
 
     return urlRepository.save(url);
@@ -175,20 +148,6 @@ public class UrlService {
   @Transactional(readOnly = true)
   public long getUserActiveUrlCount(UUID userId) {
     return urlRepository.countActiveUrlsByUserId(userId);
-  }
-
-  public boolean verifyUrlPassword(String shortCode, String password) {
-    Optional<Url> urlOpt = urlRepository.findByShortCodeAndActiveTrue(shortCode);
-    if (urlOpt.isEmpty()) {
-      return false;
-    }
-
-    Url url = urlOpt.get();
-    if (!url.isPasswordProtected()) {
-      return true;
-    }
-
-    return password != null && passwordEncoder.matches(password, url.getPasswordHash());
   }
 
   @Transactional(readOnly = true)

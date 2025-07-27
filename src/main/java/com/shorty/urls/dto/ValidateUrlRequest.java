@@ -1,3 +1,5 @@
 package com.shorty.urls.dto;
 
-public record ValidateUrlRequest(String url) {}
+import jakarta.validation.constraints.NotBlank;
+
+public record ValidateUrlRequest(@NotBlank(message = "URL is required") String url) {}

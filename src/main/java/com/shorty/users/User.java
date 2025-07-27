@@ -6,9 +6,15 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(
     name = "users",
@@ -19,29 +25,35 @@ public class User {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
-  @Column(unique = true, nullable = false)
+  @Column(unique = true, nullable = false, length = 128)
   private String email;
 
-  @Column(nullable = false)
+  @Column(nullable = false, length = 64)
   private String firstName;
 
+  @Column(length = 64)
   private String lastName;
 
-  @Column(nullable = false)
-  private String passwordHash;
+  @Column(nullable = false, length = 128)
+  private String password;
 
+  @Builder.Default
   @Column(nullable = false)
   private boolean enabled = true;
 
+  @Builder.Default
   @Column(nullable = false)
   private boolean accountExpired = false;
 
+  @Builder.Default
   @Column(nullable = false)
   private boolean accountLocked = false;
 
+  @Builder.Default
   @Column(nullable = false)
   private boolean credentialsExpired = false;
 
+  @Builder.Default
   @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   private List<Url> urls = new ArrayList<>();
 
@@ -51,97 +63,11 @@ public class User {
 
   @UpdateTimestamp private LocalDateTime updatedAt;
 
-  protected User() {}
-
-  public User(String email, String firstName, String lastName, String passwordHash) {
+  public User(String email, String firstName, String lastName, String password) {
     this.email = email;
     this.firstName = firstName;
     this.lastName = lastName;
-    this.passwordHash = passwordHash;
-  }
-
-  public UUID getId() {
-    return id;
-  }
-
-  public String getEmail() {
-    return email;
-  }
-
-  public void setEmail(String email) {
-    this.email = email;
-  }
-
-  public String getFirstName() {
-    return firstName;
-  }
-
-  public void setFirstName(String firstName) {
-    this.firstName = firstName;
-  }
-
-  public String getLastName() {
-    return lastName;
-  }
-
-  public void setLastName(String lastName) {
-    this.lastName = lastName;
-  }
-
-  public String getPasswordHash() {
-    return passwordHash;
-  }
-
-  public void setPasswordHash(String passwordHash) {
-    this.passwordHash = passwordHash;
-  }
-
-  public boolean isEnabled() {
-    return enabled;
-  }
-
-  public void setEnabled(boolean enabled) {
-    this.enabled = enabled;
-  }
-
-  public boolean isAccountExpired() {
-    return accountExpired;
-  }
-
-  public void setAccountExpired(boolean accountExpired) {
-    this.accountExpired = accountExpired;
-  }
-
-  public boolean isAccountLocked() {
-    return accountLocked;
-  }
-
-  public void setAccountLocked(boolean accountLocked) {
-    this.accountLocked = accountLocked;
-  }
-
-  public boolean isCredentialsExpired() {
-    return credentialsExpired;
-  }
-
-  public void setCredentialsExpired(boolean credentialsExpired) {
-    this.credentialsExpired = credentialsExpired;
-  }
-
-  public List<Url> getUrls() {
-    return urls;
-  }
-
-  public void setUrls(List<Url> urls) {
-    this.urls = urls;
-  }
-
-  public LocalDateTime getCreatedAt() {
-    return createdAt;
-  }
-
-  public LocalDateTime getUpdatedAt() {
-    return updatedAt;
+    this.password = password;
   }
 
   public String getFullName() {

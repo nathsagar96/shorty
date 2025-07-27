@@ -9,6 +9,7 @@ import com.shorty.urls.dto.BulkCreateUrlRequest;
 import com.shorty.urls.dto.BulkError;
 import com.shorty.urls.dto.BulkOperationResponse;
 import com.shorty.users.User;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,14 +30,14 @@ class BulkUrlServiceTest {
 
   @BeforeEach
   void setUp() {
-    user = new User("test@example.com", "Test", "User", "hashedPassword");
-    try {
-      var idField = user.getClass().getDeclaredField("id");
-      idField.setAccessible(true);
-      idField.set(user, UUID.randomUUID());
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    user =
+        User.builder()
+            .id(UUID.randomUUID())
+            .email("test@example.com")
+            .firstName("Test")
+            .lastName("User")
+            .password("hashedPassword")
+            .build();
   }
 
   @Test
@@ -44,14 +45,30 @@ class BulkUrlServiceTest {
     // Given
     List<CreateUrlRequest> urlRequests =
         List.of(
-            new CreateUrlRequest("https://example1.com", null, null, null, null, null, null),
-            new CreateUrlRequest("https://example2.com", null, null, null, null, null, null));
+            new CreateUrlRequest(
+                "https://example1.com",
+                "abc123",
+                UrlVisibility.PUBLIC,
+                LocalDateTime.now().plusDays(1),
+                -1),
+            new CreateUrlRequest(
+                "https://example2.com",
+                "def456",
+                UrlVisibility.PUBLIC,
+                LocalDateTime.now().plusDays(1),
+                -1));
     BulkCreateUrlRequest request = new BulkCreateUrlRequest(urlRequests);
 
     Url url1 = new Url("https://example1.com", "abc123", user);
     Url url2 = new Url("https://example2.com", "def456", user);
 
-    when(urlService.createShortUrl(any(), any(), any(), any(), any(), any(), any(), any()))
+    when(urlService.createShortUrl(
+            anyString(),
+            anyString(),
+            any(UrlVisibility.class),
+            any(LocalDateTime.class),
+            anyInt(),
+            any(User.class)))
         .thenReturn(url1, url2);
 
     // When
@@ -66,7 +83,13 @@ class BulkUrlServiceTest {
     assertThat(result.errors()).isEmpty();
 
     verify(urlService, times(2))
-        .createShortUrl(any(), any(), any(), any(), any(), any(), any(), any());
+        .createShortUrl(
+            anyString(),
+            anyString(),
+            any(UrlVisibility.class),
+            any(LocalDateTime.class),
+            anyInt(),
+            any(User.class));
   }
 
   @Test
@@ -74,15 +97,32 @@ class BulkUrlServiceTest {
     // Given
     List<CreateUrlRequest> urlRequests =
         List.of(
-            new CreateUrlRequest("https://example1.com", null, null, null, null, null, null),
-            new CreateUrlRequest("invalid-url", null, null, null, null, null, null),
-            new CreateUrlRequest("https://example3.com", null, null, null, null, null, null));
+            new CreateUrlRequest(
+                "https://example1.com",
+                "abc123",
+                UrlVisibility.PUBLIC,
+                LocalDateTime.now().plusDays(1),
+                -1),
+            new CreateUrlRequest(
+                "invalid-url", "def456", UrlVisibility.PUBLIC, LocalDateTime.now().plusDays(1), -1),
+            new CreateUrlRequest(
+                "https://example3.com",
+                "ghi789",
+                UrlVisibility.PUBLIC,
+                LocalDateTime.now().plusDays(1),
+                -1));
     BulkCreateUrlRequest request = new BulkCreateUrlRequest(urlRequests);
 
     Url url1 = new Url("https://example1.com", "abc123", user);
     Url url3 = new Url("https://example3.com", "ghi789", user);
 
-    when(urlService.createShortUrl(any(), any(), any(), any(), any(), any(), any(), any()))
+    when(urlService.createShortUrl(
+            anyString(),
+            anyString(),
+            any(UrlVisibility.class),
+            any(LocalDateTime.class),
+            anyInt(),
+            any(User.class)))
         .thenReturn(url1)
         .thenThrow(new RuntimeException("Invalid URL format"))
         .thenReturn(url3);
@@ -98,7 +138,7 @@ class BulkUrlServiceTest {
     assertThat(result.successful()).hasSize(2);
     assertThat(result.errors()).hasSize(1);
 
-    BulkError error = result.errors().get(0);
+    BulkError error = result.errors().getFirst();
     assertThat(error.index()).isEqualTo(1);
     assertThat(error.url()).isEqualTo("invalid-url");
     assertThat(error.errorMessage()).isEqualTo("Invalid URL format");

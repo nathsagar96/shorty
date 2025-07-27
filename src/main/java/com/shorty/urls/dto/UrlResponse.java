@@ -20,8 +20,6 @@ public record UrlResponse(
     int clickLimit,
     int clickCount,
     int remainingClicks,
-    String description,
-    boolean passwordProtected,
     UrlStats stats) {
   public static UrlResponse from(Url url, String baseUrl) {
     return new UrlResponse(
@@ -39,8 +37,6 @@ public record UrlResponse(
         url.getClickLimit(),
         url.getClickCount(),
         url.getRemainingClicks(),
-        url.getDescription(),
-        url.isPasswordProtected(),
         new UrlStats(url.isAccessible(), url.isClickLimitReached()));
   }
 }

@@ -16,12 +16,9 @@ public record CreateUrlRequest(
         String customCode,
     UrlVisibility visibility,
     @Future(message = "Expiration date must be in the future") LocalDateTime expiresAt,
-    @Min(value = 1, message = "Click limit must be positive")
+    @Min(value = -1, message = "Click limit must be -1 (unlimited) or positive")
         @Max(value = 1000000, message = "Click limit too high")
-        Integer clickLimit,
-    @Size(max = 500, message = "Description too long") String description,
-    @Size(min = 6, max = 50, message = "Password must be between 6 and 50 characters")
-        String password) {
+        Integer clickLimit) {
   public CreateUrlRequest {
     if (visibility == null) {
       visibility = UrlVisibility.PUBLIC;

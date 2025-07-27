@@ -1,6 +1,7 @@
 package com.shorty.common.scheduler;
 
 import com.shorty.urls.UrlService;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @EnableScheduling
+@RequiredArgsConstructor
 @ConditionalOnProperty(
     name = "app.url.cleanup.enabled",
     havingValue = "true",
@@ -19,10 +21,6 @@ public class UrlCleanupScheduler {
   private static final Logger logger = LoggerFactory.getLogger(UrlCleanupScheduler.class);
 
   private final UrlService urlService;
-
-  public UrlCleanupScheduler(UrlService urlService) {
-    this.urlService = urlService;
-  }
 
   @Scheduled(cron = "${app.url.cleanup.cron:0 0 2 * * ?}")
   public void cleanupExpiredUrls() {

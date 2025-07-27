@@ -38,25 +38,23 @@ class BulkUrlControllerTest {
   @BeforeEach
   void setUp() throws Exception {
     objectMapper.registerModule(new JavaTimeModule());
-    User user = new User("test@example.com", "Test", "User", "hashedPassword");
 
-    try {
-      var idField = user.getClass().getDeclaredField("id");
-      idField.setAccessible(true);
-      idField.set(user, UUID.randomUUID());
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    User user =
+        User.builder()
+            .id(UUID.randomUUID())
+            .email("test@example.com")
+            .firstName("Test")
+            .lastName("User")
+            .password("hashedPassword")
+            .build();
 
-    url = new Url("http://example.com", "example", user);
-
-    try {
-      var idField = url.getClass().getDeclaredField("id");
-      idField.setAccessible(true);
-      idField.set(url, UUID.randomUUID());
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    url =
+        Url.builder()
+            .id(UUID.randomUUID())
+            .originalUrl("http://example.com")
+            .shortCode("example")
+            .user(user)
+            .build();
   }
 
   @Test
@@ -70,17 +68,13 @@ class BulkUrlControllerTest {
                 "example1",
                 UrlVisibility.PUBLIC,
                 LocalDateTime.now().plusDays(1),
-                1,
-                "Example 1",
-                "password123"),
+                1),
             new CreateUrlRequest(
                 "http://example2.com",
                 "example2",
                 UrlVisibility.PUBLIC,
                 LocalDateTime.now().plusDays(1),
-                1,
-                "Example 2",
-                "password123"));
+                1));
     BulkCreateUrlRequest bulkRequest = new BulkCreateUrlRequest(urlRequests);
 
     url.setShortCode("example1");
@@ -93,7 +87,7 @@ class BulkUrlControllerTest {
         new BulkOperationResponse<>(List.of(urlResponse1, urlResponse2), List.of(), 2, 2, 0);
 
     when(bulkUrlService.bulkCreateUrls(
-            any(BulkCreateUrlRequest.class), any(User.class), any(String.class)))
+            any(BulkCreateUrlRequest.class), any(User.class), anyString()))
         .thenReturn(serviceResponse);
 
     // when & then
@@ -112,7 +106,7 @@ class BulkUrlControllerTest {
 
     // verify interaction
     verify(bulkUrlService)
-        .bulkCreateUrls(any(BulkCreateUrlRequest.class), any(User.class), any(String.class));
+        .bulkCreateUrls(any(BulkCreateUrlRequest.class), any(User.class), anyString());
   }
 
   @Test
@@ -126,9 +120,7 @@ class BulkUrlControllerTest {
                 "example1",
                 UrlVisibility.PUBLIC,
                 LocalDateTime.now().plusDays(1),
-                1,
-                "Example 1",
-                "password123"));
+                1));
     BulkCreateUrlRequest bulkRequest = new BulkCreateUrlRequest(urlRequests);
 
     // when & then
@@ -142,7 +134,7 @@ class BulkUrlControllerTest {
 
     // verify no interaction with service
     verify(bulkUrlService, never())
-        .bulkCreateUrls(any(BulkCreateUrlRequest.class), any(User.class), any(String.class));
+        .bulkCreateUrls(any(BulkCreateUrlRequest.class), any(User.class), anyString());
   }
 
   @Test
@@ -155,8 +147,7 @@ class BulkUrlControllerTest {
     BulkOperationResponse<UUID> serviceResponse =
         new BulkOperationResponse<>(urlIds, List.of(), 2, 2, 0);
 
-    when(bulkUrlService.bulkDeleteUrls(any(List.class), any(UUID.class)))
-        .thenReturn(serviceResponse);
+    when(bulkUrlService.bulkDeleteUrls(anyList(), any(UUID.class))).thenReturn(serviceResponse);
 
     // when & then
     mockMvc
@@ -173,7 +164,7 @@ class BulkUrlControllerTest {
         .andExpect(jsonPath("$.successful[1]").value(urlIds.get(1).toString()));
 
     // verify interaction
-    verify(bulkUrlService).bulkDeleteUrls(any(List.class), any(UUID.class));
+    verify(bulkUrlService).bulkDeleteUrls(anyList(), any(UUID.class));
   }
 
   @Test
@@ -192,7 +183,7 @@ class BulkUrlControllerTest {
         new BulkOperationResponse<>(List.of(urlResponse1, urlResponse2), List.of(), 2, 2, 0);
 
     when(bulkUrlService.bulkUpdateVisibility(
-            any(List.class), any(UrlVisibility.class), any(UUID.class), any(String.class)))
+            anyList(), any(UrlVisibility.class), any(UUID.class), anyString()))
         .thenReturn(serviceResponse);
 
     // when & then
@@ -211,8 +202,7 @@ class BulkUrlControllerTest {
 
     // verify interaction
     verify(bulkUrlService)
-        .bulkUpdateVisibility(
-            any(List.class), any(UrlVisibility.class), any(UUID.class), any(String.class));
+        .bulkUpdateVisibility(anyList(), any(UrlVisibility.class), any(UUID.class), anyString());
   }
 
   @Test
@@ -229,8 +219,7 @@ class BulkUrlControllerTest {
     BulkOperationResponse<UrlResponse> serviceResponse =
         new BulkOperationResponse<>(List.of(urlResponse1, urlResponse2), List.of(), 2, 2, 0);
 
-    when(bulkUrlService.bulkToggleStatus(
-            any(List.class), any(Boolean.class), any(UUID.class), any(String.class)))
+    when(bulkUrlService.bulkToggleStatus(anyList(), anyBoolean(), any(UUID.class), anyString()))
         .thenReturn(serviceResponse);
 
     // when & then
@@ -248,7 +237,6 @@ class BulkUrlControllerTest {
         .andExpect(jsonPath("$.successful[1].active").value(true));
 
     // verify interaction
-    verify(bulkUrlService)
-        .bulkToggleStatus(any(List.class), any(Boolean.class), any(UUID.class), any(String.class));
+    verify(bulkUrlService).bulkToggleStatus(anyList(), anyBoolean(), any(UUID.class), anyString());
   }
 }

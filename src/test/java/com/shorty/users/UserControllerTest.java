@@ -24,6 +24,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -58,7 +61,7 @@ class UserControllerTest {
 
   @Test
   @WithUserDetails("test@example.com")
-  void getCurrentUserProfile_returnsUserProfile() throws Exception {
+  void getUserProfile_returnsUserProfile() throws Exception {
     // given
     when(userService.getUserProfile(any(UUID.class))).thenReturn(userResponse);
 
@@ -77,23 +80,24 @@ class UserControllerTest {
 
   @Test
   @WithUserDetails("test@example.com")
-  void getCurrentUserUrls_returnsUserUrls() throws Exception {
+  void getUserUrls_returnsUserUrls() throws Exception {
     // given
-    when(urlService.getUserUrls(any(UUID.class)))
-        .thenReturn(
+    Page<Url> page =
+        new PageImpl<>(
             List.of(
-                new Url("https://example.com", "Example"),
-                new Url("https://example.org", "Example")));
+                Url.builder().id(UUID.randomUUID()).originalUrl("http://example.com").build(),
+                Url.builder().id(UUID.randomUUID()).originalUrl("http://example2.com").build()));
+    when(urlService.getUserUrls(any(UUID.class), any(Pageable.class))).thenReturn(page);
 
     // when & then
     mockMvc
         .perform(get("/api/v1/users/urls").contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.length()").value(2));
+        .andExpect(jsonPath("$.numberOfElements").value(2));
 
     // verify interaction
-    verify(urlService).getUserUrls(any(UUID.class));
+    verify(urlService).getUserUrls(any(UUID.class), any(Pageable.class));
   }
 
   @Test
@@ -101,7 +105,7 @@ class UserControllerTest {
   void updateProfile_validRequest_updatesUserProfile() throws Exception {
     // given
     UpdateProfileRequest validRequest = new UpdateProfileRequest("Test", "User");
-    when(userService.updateUserProfile(any(UUID.class), any(String.class), any(String.class)))
+    when(userService.updateUserProfile(any(UUID.class), anyString(), anyString()))
         .thenReturn(userResponse);
 
     // when & then
@@ -117,7 +121,7 @@ class UserControllerTest {
         .andExpect(jsonPath("$.lastName").value("User"));
 
     // verify interaction
-    verify(userService).updateUserProfile(any(UUID.class), any(String.class), any(String.class));
+    verify(userService).updateUserProfile(any(UUID.class), anyString(), anyString());
   }
 
   @Test
@@ -136,6 +140,6 @@ class UserControllerTest {
         .andExpect(status().isOk());
 
     // verify interaction
-    verify(userService).changePassword(any(UUID.class), any(String.class), any(String.class));
+    verify(userService).changePassword(any(UUID.class), anyString(), anyString());
   }
 }

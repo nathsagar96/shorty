@@ -7,21 +7,18 @@ import com.shorty.users.dto.UserResponse;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class UserService {
 
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
-
-  public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
-    this.userRepository = userRepository;
-    this.passwordEncoder = passwordEncoder;
-  }
 
   public UserResponse registerUser(UserRegistrationRequest request) {
     if (userRepository.existsByEmail(request.email())) {
@@ -29,11 +26,12 @@ public class UserService {
     }
 
     User user =
-        new User(
-            request.email(),
-            request.firstName(),
-            request.lastName(),
-            passwordEncoder.encode(request.password()));
+        User.builder()
+            .email(request.email())
+            .firstName(request.firstName())
+            .lastName(request.lastName())
+            .password(passwordEncoder.encode(request.password()))
+            .build();
 
     User savedUser = userRepository.save(user);
     return UserResponse.from(savedUser);
@@ -78,11 +76,11 @@ public class UserService {
             .findById(userId)
             .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
-    if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+    if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
       throw new ValidationException("Current password is incorrect");
     }
 
-    user.setPasswordHash(passwordEncoder.encode(newPassword));
+    user.setPassword(passwordEncoder.encode(newPassword));
     userRepository.save(user);
   }
 

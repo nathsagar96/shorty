@@ -63,8 +63,6 @@ public class UrlController {
             request.visibility(),
             request.expiresAt(),
             request.clickLimit(),
-            request.description(),
-            request.password(),
             userDetails.user());
 
     UrlResponse response = UrlResponse.from(url, baseUrl);
@@ -106,10 +104,7 @@ public class UrlController {
             request.originalUrl(),
             request.visibility(),
             request.expiresAt(),
-            request.clickLimit(),
-            request.description(),
-            request.password(),
-            request.removePassword());
+            request.clickLimit());
 
     UrlResponse response = UrlResponse.from(url, baseUrl);
     return ResponseEntity.ok(response);
