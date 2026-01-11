@@ -2,6 +2,7 @@ package com.shorty.controllers;
 
 import com.shorty.dtos.requests.CreateUrlRequest;
 import com.shorty.dtos.responses.UrlResponse;
+import com.shorty.dtos.responses.UrlStatsResponse;
 import com.shorty.services.UrlShortenerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,5 +21,11 @@ public class UrlShortenerController {
     ResponseEntity<UrlResponse> createShortUrl(@Valid @RequestBody CreateUrlRequest request) {
         UrlResponse response = urlShortenerService.createShortUrl(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/{shortCode}/stats")
+    public ResponseEntity<UrlStatsResponse> getUrlStats(@PathVariable String shortCode) {
+        UrlStatsResponse stats = urlShortenerService.getUrlStats(shortCode);
+        return ResponseEntity.ok(stats);
     }
 }

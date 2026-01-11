@@ -2,6 +2,7 @@ package com.shorty.services;
 
 import com.shorty.dtos.requests.CreateUrlRequest;
 import com.shorty.dtos.responses.UrlResponse;
+import com.shorty.dtos.responses.UrlStatsResponse;
 import com.shorty.entities.UrlMapping;
 import com.shorty.exceptions.UrlNotFoundException;
 import com.shorty.mappers.UrlMapper;
@@ -48,6 +49,15 @@ public class UrlShortenerService {
         log.info("Redirecting {} to {} (clicks: {})", shortCode, urlMapping.getOriginalUrl(), urlMapping.getClicks());
 
         return urlMapping.getOriginalUrl();
+    }
+
+    @Transactional(readOnly = true)
+    public UrlStatsResponse getUrlStats(String shortCode) {
+        UrlMapping urlMapping = urlMappingRepository
+                .findByShortCode(shortCode)
+                .orElseThrow(() -> new UrlNotFoundException("Short URL not found: " + shortCode));
+
+        return urlMapper.toUrlStatsResponse(urlMapping);
     }
 
     private String generateUniqueShortCode() {

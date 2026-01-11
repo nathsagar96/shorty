@@ -1,6 +1,7 @@
 package com.shorty.mappers;
 
 import com.shorty.dtos.responses.UrlResponse;
+import com.shorty.dtos.responses.UrlStatsResponse;
 import com.shorty.entities.UrlMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -14,6 +15,9 @@ public abstract class UrlMapper {
 
     @Mapping(target = "shortUrl", source = "shortCode", qualifiedByName = "buildShortUrl")
     public abstract UrlResponse toUrlResponse(UrlMapping urlMapping);
+
+    @Mapping(target = "shortUrl", source = "shortCode", qualifiedByName = "buildShortUrl")
+    public abstract UrlStatsResponse toUrlStatsResponse(UrlMapping urlMapping);
 
     @Named("buildShortUrl")
     protected String buildShortUrl(String shortCode) {
