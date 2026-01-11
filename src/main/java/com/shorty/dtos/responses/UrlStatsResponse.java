@@ -10,4 +10,5 @@ public record UrlStatsResponse(
         String shortUrl,
         Long clicks,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt) {}
+        LocalDateTime updatedAt,
+        LocalDateTime expiresAt) {}

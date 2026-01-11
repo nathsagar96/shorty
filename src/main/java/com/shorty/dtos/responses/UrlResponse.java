@@ -4,4 +4,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record UrlResponse(
-        UUID id, String originalUrl, String shortCode, String shortUrl, Long clicks, LocalDateTime createdAt) {}
+        UUID id,
+        String originalUrl,
+        String shortCode,
+        String shortUrl,
+        Long clicks,
+        LocalDateTime createdAt,
+        LocalDateTime expiresAt) {}

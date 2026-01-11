@@ -5,14 +5,17 @@ import com.shorty.dtos.responses.UrlResponse;
 import com.shorty.dtos.responses.UrlStatsResponse;
 import com.shorty.entities.UrlMapping;
 import com.shorty.exceptions.AliasAlreadyExistsException;
+import com.shorty.exceptions.UrlExpiredException;
 import com.shorty.exceptions.UrlNotFoundException;
 import com.shorty.mappers.UrlMapper;
 import com.shorty.repositories.UrlMappingRepository;
 import com.shorty.utils.ShortCodeGenerator;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @Slf4j
@@ -27,7 +30,7 @@ public class UrlShortenerService {
     public UrlResponse createShortUrl(CreateUrlRequest request) {
         String shortCode;
 
-        if (request.customAlias() != null && !request.customAlias().isEmpty()) {
+        if (StringUtils.hasText(request.customAlias())) {
             if (urlMappingRepository.existsByShortCode(request.customAlias())) {
                 throw new AliasAlreadyExistsException("Custom alias '" + request.customAlias() + "' already exists");
             }
@@ -41,6 +44,10 @@ public class UrlShortenerService {
                 .shortCode(shortCode)
                 .build();
 
+        if (request.hoursToExpire() != null) {
+            urlMapping.setExpiresAt(LocalDateTime.now().plusHours(request.hoursToExpire()));
+        }
+
         UrlMapping saved = urlMappingRepository.save(urlMapping);
         log.info("Created short URL: {} for {}", shortCode, request.url());
 
@@ -52,6 +59,10 @@ public class UrlShortenerService {
         UrlMapping urlMapping = urlMappingRepository
                 .findByShortCode(shortCode)
                 .orElseThrow(() -> new UrlNotFoundException("Short URL not found: " + shortCode));
+
+        if (urlMapping.getExpiresAt() != null && urlMapping.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new UrlExpiredException("This link has expired and is no longer active");
+        }
 
         urlMapping.incrementClicks();
         urlMappingRepository.save(urlMapping);

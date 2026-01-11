@@ -34,6 +34,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problemDetail;
     }
 
+    @ExceptionHandler(value = UrlExpiredException.class)
+    ProblemDetail handleUrlExpiredException(UrlExpiredException exception) {
+        log.error("UrlExpiredException: {}", exception.getMessage());
+
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.GONE, exception.getMessage());
+        problemDetail.setTitle("Url Expired");
+        problemDetail.setType(URI.create("https://shorty.com/errors/url-expired"));
+
+        return problemDetail;
+    }
+
     @ExceptionHandler(value = Exception.class)
     ProblemDetail handleException(Exception exception) {
         log.error("Exception: {}", exception.getMessage());

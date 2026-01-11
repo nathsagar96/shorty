@@ -37,6 +37,8 @@ public class UrlMapping {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    private LocalDateTime expiresAt;
+
     public void incrementClicks() {
         this.clicks++;
     }
