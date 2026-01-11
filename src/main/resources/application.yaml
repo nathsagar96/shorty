@@ -9,6 +9,11 @@ spring:
         ddl-auto: update
         format_sql: true
 
+app:
+  base-url: http://localhost:8080
+  shortcode:
+    length: 7
+
 management:
   endpoints:
     web:
@@ -18,7 +23,7 @@ management:
 logging:
   level:
     root: INFO
-    com.tickety: DEBUG
+    com.shorty: DEBUG
 
 ---
 spring:
@@ -36,6 +41,9 @@ spring:
     hibernate:
       ddl-auto: none
 
+app:
+  base-url: https://shorty.com
+
 management:
   endpoint:
     health:
@@ -44,4 +52,4 @@ management:
 logging:
   level:
     root: WARN
-    com.tickety: INFO
+    com.shorty: INFO
