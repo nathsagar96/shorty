@@ -2,28 +2,69 @@ spring:
   application:
     name: shorty
 
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/postgres}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:SecurePassword123!}
+    driver-class-name: org.postgresql.Driver
+
   jpa:
-    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    show-sql: false
     properties:
       hibernate:
-        ddl-auto: update
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        use_sql_comments: false
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
+
+  jackson:
+    default-property-inclusion: non_null
 
 app:
-  base-url: http://localhost:8080
+  base-url: ${BASE_URL:http://localhost:8080}
+  retry:
+    attempts: 3
   shortcode:
     length: 7
+  cleanup:
+    cron: "0 0 0 * * ?" # Every day at midnight
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
+server:
+  port: 8080
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: never
+    include-exception: false
 
 logging:
   level:
     root: INFO
     com.shorty: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
 
 ---
 spring:
@@ -35,21 +76,22 @@ spring:
     url: ${DATABASE_URL}
     username: ${DATABASE_USERNAME}
     password: ${DATABASE_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   jpa:
     show-sql: false
-    hibernate:
-      ddl-auto: none
-
-app:
-  base-url: https://shorty.com
-
-management:
-  endpoint:
-    health:
-      show-details: when-authorized
+    properties:
+      hibernate:
+        ddl-auto: validate
+        generate_statistics: false
 
 logging:
   level:
     root: WARN
     com.shorty: INFO
+    org.hibernate.SQL: WARN

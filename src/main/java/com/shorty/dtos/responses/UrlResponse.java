@@ -1,13 +1,13 @@
 package com.shorty.dtos.responses;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record UrlResponse(
         UUID id,
-        String originalUrl,
         String shortCode,
         String shortUrl,
-        Long clicks,
-        LocalDateTime createdAt,
-        LocalDateTime expiresAt) {}
+        String originalUrl,
+        Long clickCount,
+        Instant expiresAt,
+        Instant createdAt) {}

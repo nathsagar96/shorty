@@ -1,11 +1,12 @@
 package com.shorty.entities;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Getter
 @Setter
@@ -14,32 +15,44 @@ import org.hibernate.annotations.UpdateTimestamp;
 @AllArgsConstructor
 @Entity
 @Table(name = "url_mappings")
+@EntityListeners(AuditingEntityListener.class)
 public class UrlMapping {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(updatable = false, nullable = false)
     private UUID id;
 
-    @Lob
-    @Column(nullable = false)
-    private String originalUrl;
-
-    @Column(unique = true)
+    @Column(name = "short_code", nullable = false, unique = true, length = 10)
     private String shortCode;
 
+    @Column(name = "original_url", nullable = false, length = 2048)
+    private String originalUrl;
+
+    @Column(name = "expires_at")
+    private Instant expiresAt;
+
     @Builder.Default
-    private Long clicks = 0L;
+    @Column(name = "click_count", nullable = false)
+    private Long clickCount = 0L;
 
-    @CreationTimestamp
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    @org.springframework.data.annotation.Version
+    @Column(name = "version")
+    private Long version;
 
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
-    private LocalDateTime expiresAt;
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
 
-    public void incrementClicks() {
-        this.clicks++;
+    public boolean isExpired() {
+        return expiresAt != null && Instant.now().isAfter(expiresAt);
+    }
+
+    public void incrementClickCount() {
+        this.clickCount++;
     }
 }

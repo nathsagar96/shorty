@@ -1,20 +1,29 @@
 package com.shorty.controllers;
 
-import com.shorty.services.UrlShortenerService;
+import com.shorty.dtos.responses.RedirectResponse;
+import com.shorty.services.UrlService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Controller;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
 
-@Controller
+@Slf4j
+@RestController
 @RequiredArgsConstructor
 public class RedirectController {
 
-    private final UrlShortenerService urlShortenerService;
+    private final UrlService urlService;
 
     @GetMapping("/{shortCode}")
-    String redirect(@PathVariable String shortCode) {
-        String originalUrl = urlShortenerService.getOriginalUrlAndTrackClick(shortCode);
-        return "redirect:" + originalUrl;
+    public void redirectToOriginalUrl(@PathVariable String shortCode, HttpServletResponse response) {
+        log.debug("Redirecting short code: {}", shortCode);
+
+        RedirectResponse redirectData = urlService.resolveAndTrack(shortCode);
+
+        response.setStatus(HttpServletResponse.SC_FOUND);
+        response.setHeader("Location", redirectData.originalUrl());
+        response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     }
 }
