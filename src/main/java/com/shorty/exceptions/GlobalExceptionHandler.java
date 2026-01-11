@@ -23,6 +23,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problemDetail;
     }
 
+    @ExceptionHandler(value = AliasAlreadyExistsException.class)
+    ProblemDetail handleAliasAlreadyExistsException(AliasAlreadyExistsException exception) {
+        log.error("AliasAlreadyExistsException: {}", exception.getMessage());
+
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+        problemDetail.setTitle("Alias Already Exists");
+        problemDetail.setType(URI.create("https://shorty.com/errors/already-exists"));
+
+        return problemDetail;
+    }
+
     @ExceptionHandler(value = Exception.class)
     ProblemDetail handleException(Exception exception) {
         log.error("Exception: {}", exception.getMessage());

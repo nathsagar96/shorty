@@ -4,6 +4,7 @@ import com.shorty.dtos.requests.CreateUrlRequest;
 import com.shorty.dtos.responses.UrlResponse;
 import com.shorty.dtos.responses.UrlStatsResponse;
 import com.shorty.entities.UrlMapping;
+import com.shorty.exceptions.AliasAlreadyExistsException;
 import com.shorty.exceptions.UrlNotFoundException;
 import com.shorty.mappers.UrlMapper;
 import com.shorty.repositories.UrlMappingRepository;
@@ -24,7 +25,16 @@ public class UrlShortenerService {
 
     @Transactional
     public UrlResponse createShortUrl(CreateUrlRequest request) {
-        String shortCode = generateUniqueShortCode();
+        String shortCode;
+
+        if (request.customAlias() != null && !request.customAlias().isEmpty()) {
+            if (urlMappingRepository.existsByShortCode(request.customAlias())) {
+                throw new AliasAlreadyExistsException("Custom alias '" + request.customAlias() + "' already exists");
+            }
+            shortCode = request.customAlias();
+        } else {
+            shortCode = generateUniqueShortCode();
+        }
 
         UrlMapping urlMapping = UrlMapping.builder()
                 .originalUrl(request.url())
