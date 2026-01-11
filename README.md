@@ -1,2 +1,2 @@
 # shorty
-url shortner application in spring boot 4
+url shortener application in spring boot 4
