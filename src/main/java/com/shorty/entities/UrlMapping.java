@@ -14,7 +14,13 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "url_mappings")
+@Table(
+        name = "url_mappings",
+        indexes = {
+            @Index(name = "idx_short_code", columnList = "short_code", unique = true),
+            @Index(name = "idx_expires_at", columnList = "expires_at"),
+            @Index(name = "idx_created_at", columnList = "created_at")
+        })
 @EntityListeners(AuditingEntityListener.class)
 public class UrlMapping {
 
