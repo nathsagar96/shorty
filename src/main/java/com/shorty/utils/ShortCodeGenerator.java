@@ -48,6 +48,6 @@ public class ShortCodeGenerator {
             return false;
         }
 
-        return alias.matches("^[a-zA-Z0-9_-]+$");
+        return alias.matches("^[a-zA-Z0-9]+$");
     }
 }
