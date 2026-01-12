@@ -110,7 +110,7 @@ curl -L http://localhost:8080/mycustom
 - **Base62 Encoding**: Uses alphanumeric characters (a-z, A-Z, 0-9)
 - **Secure Random**: Cryptographically secure random number generation
 - **Collision Handling**: Automatic retry mechanism (3 attempts by default)
-- **Validation**: Custom alias validation with regex pattern `^[a-zA-Z0-9_-]+$`
+- **Validation**: Custom alias validation with regex pattern `^[a-zA-Z0-9]+$`
 
 ### URL Management
 
