@@ -163,6 +163,14 @@ app:
     cron: "0 0 0 * * ?"  # Daily at midnight
 ```
 
+### Default Expiration
+
+```yaml
+app:
+  url-expiration:
+    default-hours: 8760  # 1 year in hours
+```
+
 ## 🧪 Testing
 
 The application includes comprehensive test coverage:

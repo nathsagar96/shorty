@@ -10,6 +10,7 @@ import com.shorty.exceptions.UrlNotFoundException;
 import com.shorty.mappers.UrlMapper;
 import com.shorty.repositories.UrlMappingRepository;
 import com.shorty.utils.ShortCodeGenerator;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +33,9 @@ public class UrlService {
 
     @Value("${app.retry.attempts:3}")
     private int maxRetryAttempts;
+
+    @Value("${app.url-expiration.default-hours:8760}")
+    private int defaultExpirationHours;
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public UrlResponse createShortUrl(CreateUrlRequest request) {
@@ -56,7 +60,7 @@ public class UrlService {
         UrlMapping mapping = UrlMapping.builder()
                 .shortCode(shortCode)
                 .originalUrl(request.originalUrl())
-                .expiresAt(request.calculateExpirationTime())
+                .expiresAt(calculateDefaultExpirationTime(request))
                 .build();
 
         UrlMapping saved = repository.save(mapping);
@@ -116,5 +120,13 @@ public class UrlService {
         }
 
         throw new IllegalStateException("Failed to generate unique short code after " + maxRetryAttempts + " attempts");
+    }
+
+    private Instant calculateDefaultExpirationTime(CreateUrlRequest request) {
+        if (request.expirationHours() != null) {
+            return Instant.now().plusSeconds(request.expirationHours() * 3600L);
+        } else {
+            return Instant.now().plusSeconds(defaultExpirationHours * 3600L);
+        }
     }
 }

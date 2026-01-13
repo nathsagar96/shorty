@@ -31,6 +31,8 @@ app:
     attempts: 3
   shortcode:
     length: 7
+  url-expiration:
+    default-hours: 8760
   cleanup:
     cron: "0 0 0 * * ?" # Every day at midnight
 

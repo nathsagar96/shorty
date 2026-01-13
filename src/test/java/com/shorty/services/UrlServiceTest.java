@@ -57,6 +57,10 @@ class UrlServiceTest {
             Field maxRetryField = UrlService.class.getDeclaredField("maxRetryAttempts");
             maxRetryField.setAccessible(true);
             maxRetryField.set(urlService, maxRetryAttempts);
+
+            Field defaultExpirationField = UrlService.class.getDeclaredField("defaultExpirationHours");
+            defaultExpirationField.setAccessible(true);
+            defaultExpirationField.set(urlService, 8760); // 1 year in hours
         } catch (Exception e) {
             throw new RuntimeException("Failed to set up test fields", e);
         }
@@ -72,10 +76,11 @@ class UrlServiceTest {
             // Given
             CreateUrlRequest request = new CreateUrlRequest("https://example.com", null, null);
             String shortCode = "abc123";
+            Instant expectedExpiration = Instant.now().plus(8760, ChronoUnit.HOURS);
             UrlMapping mapping = UrlMapping.builder()
                     .shortCode(shortCode)
                     .originalUrl("https://example.com")
-                    .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                    .expiresAt(expectedExpiration)
                     .build();
             UrlResponse expectedResponse = new UrlResponse(
                     UUID.randomUUID(),
@@ -83,7 +88,7 @@ class UrlServiceTest {
                     "http://localhost:8080/abc123",
                     "https://example.com",
                     0L,
-                    Instant.now().plus(7, ChronoUnit.DAYS),
+                    expectedExpiration,
                     Instant.now());
 
             when(codeGenerator.generate()).thenReturn(shortCode);
@@ -108,10 +113,11 @@ class UrlServiceTest {
             // Given
             String customAlias = "myalias";
             CreateUrlRequest request = new CreateUrlRequest("https://example.com", customAlias, null);
+            Instant expectedExpiration = Instant.now().plus(8760, ChronoUnit.HOURS);
             UrlMapping mapping = UrlMapping.builder()
                     .shortCode(customAlias)
                     .originalUrl("https://example.com")
-                    .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                    .expiresAt(expectedExpiration)
                     .build();
             UrlResponse expectedResponse = new UrlResponse(
                     UUID.randomUUID(),
@@ -119,7 +125,7 @@ class UrlServiceTest {
                     "http://localhost:8080/myalias",
                     "https://example.com",
                     0L,
-                    Instant.now().plus(7, ChronoUnit.DAYS),
+                    expectedExpiration,
                     Instant.now());
 
             when(codeGenerator.isValidAlias(customAlias)).thenReturn(true);
@@ -348,6 +354,7 @@ class UrlServiceTest {
             // Given
             CreateUrlRequest request = new CreateUrlRequest("https://example.com", null, null);
             String shortCode = "concurrent123";
+            Instant expectedExpiration = Instant.now().plus(8760, ChronoUnit.HOURS);
 
             when(codeGenerator.generate()).thenReturn(shortCode);
             when(repository.existsByShortCode(shortCode)).thenReturn(false);
@@ -355,7 +362,7 @@ class UrlServiceTest {
                     .thenReturn(UrlMapping.builder()
                             .shortCode(shortCode)
                             .originalUrl("https://example.com")
-                            .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                            .expiresAt(expectedExpiration)
                             .build());
 
             // When
