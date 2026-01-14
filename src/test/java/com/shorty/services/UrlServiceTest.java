@@ -2,9 +2,11 @@ package com.shorty.services;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.shorty.dtos.requests.CreateUrlRequest;
+import com.shorty.dtos.responses.PageResponse;
 import com.shorty.dtos.responses.RedirectResponse;
 import com.shorty.dtos.responses.UrlResponse;
 import com.shorty.entities.UrlMapping;
@@ -17,6 +19,8 @@ import com.shorty.utils.ShortCodeGenerator;
 import java.lang.reflect.Field;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +31,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 @ExtendWith(MockitoExtension.class)
 class UrlServiceTest {
@@ -619,6 +627,206 @@ class UrlServiceTest {
 
             // When/Then - Different case should fail
             assertThrows(UrlNotFoundException.class, () -> urlService.resolveAndTrack(shortCodeLower));
+        }
+    }
+
+    @Nested
+    @DisplayName("Get All URLs Tests")
+    class GetAllUrlsTests {
+
+        @Test
+        @DisplayName("Should return empty page when no URLs exist")
+        void shouldReturnEmptyPageWhenNoUrlsExist() {
+            // Given
+            int page = 0;
+            int size = 10;
+            UUID userId = UUID.randomUUID();
+
+            Page<UrlMapping> emptyPage = new PageImpl<>(new ArrayList<>(), PageRequest.of(page, size), 0);
+            when(repository.findByUserId(any(Pageable.class), eq(userId))).thenReturn(emptyPage);
+
+            // When
+            PageResponse<UrlResponse> response = urlService.getAllUrls(page, size, userId);
+
+            // Then
+            assertNotNull(response);
+            assertTrue(response.content().isEmpty());
+            assertEquals(0, response.totalElements());
+            assertEquals(0, response.totalPages());
+            assertTrue(response.first());
+            assertTrue(response.last());
+        }
+
+        @Test
+        @DisplayName("Should return paginated URLs when URLs exist")
+        void shouldReturnPaginatedUrlsWhenUrlsExist() {
+            // Given
+            int page = 0;
+            int size = 5;
+            UUID userId = UUID.randomUUID();
+
+            // Create test URL mappings
+            UrlMapping mapping1 = UrlMapping.builder()
+                    .shortCode("test1")
+                    .originalUrl("https://example1.com")
+                    .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                    .userId(userId)
+                    .build();
+
+            UrlMapping mapping2 = UrlMapping.builder()
+                    .shortCode("test2")
+                    .originalUrl("https://example2.com")
+                    .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                    .userId(userId)
+                    .build();
+
+            // Create expected responses
+            UrlResponse response1 = new UrlResponse(
+                    UUID.randomUUID(),
+                    "test1",
+                    "http://localhost:8080/test1",
+                    "https://example1.com",
+                    0L,
+                    Instant.now().plus(7, ChronoUnit.DAYS),
+                    Instant.now());
+
+            UrlResponse response2 = new UrlResponse(
+                    UUID.randomUUID(),
+                    "test2",
+                    "http://localhost:8080/test2",
+                    "https://example2.com",
+                    0L,
+                    Instant.now().plus(7, ChronoUnit.DAYS),
+                    Instant.now());
+
+            // Mock the repository to return a page with 2 items
+            List<UrlMapping> content = new ArrayList<>();
+            content.add(mapping1);
+            content.add(mapping2);
+            Page<UrlMapping> mockPage = new PageImpl<>(content, PageRequest.of(page, size), 2);
+
+            when(repository.findByUserId(any(Pageable.class), eq(userId))).thenReturn(mockPage);
+            when(mapper.toResponse(mapping1, baseUrl)).thenReturn(response1);
+            when(mapper.toResponse(mapping2, baseUrl)).thenReturn(response2);
+
+            // When
+            PageResponse<UrlResponse> response = urlService.getAllUrls(page, size, userId);
+
+            // Then
+            assertNotNull(response);
+            assertEquals(2, response.content().size());
+            assertEquals(2, response.totalElements());
+            assertEquals(1, response.totalPages());
+            assertTrue(response.first());
+            assertTrue(response.last());
+            assertEquals(response1.shortUrl(), response.content().get(0).shortUrl());
+            assertEquals(response2.shortUrl(), response.content().get(1).shortUrl());
+        }
+
+        @Test
+        @DisplayName("Should handle pagination correctly")
+        void shouldHandlePaginationCorrectly() {
+            // Given
+            int page = 1; // Second page
+            int size = 2;
+            UUID userId = UUID.randomUUID();
+
+            // Create more test URL mappings than page size
+            UrlMapping mapping1 = UrlMapping.builder()
+                    .shortCode("page2-1")
+                    .originalUrl("https://page2-example1.com")
+                    .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                    .userId(userId)
+                    .build();
+
+            UrlMapping mapping2 = UrlMapping.builder()
+                    .shortCode("page2-2")
+                    .originalUrl("https://page2-example2.com")
+                    .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                    .userId(userId)
+                    .build();
+
+            // Mock the repository to return a page with items for page 1
+            List<UrlMapping> content = new ArrayList<>();
+            content.add(mapping1);
+            content.add(mapping2);
+            Page<UrlMapping> mockPage = new PageImpl<>(content, PageRequest.of(page, size), 5); // Total 5 items
+
+            when(repository.findByUserId(any(Pageable.class), eq(userId))).thenReturn(mockPage);
+            when(mapper.toResponse(any(UrlMapping.class), eq(baseUrl))).thenAnswer(invocation -> {
+                UrlMapping mapping = invocation.getArgument(0);
+                return new UrlResponse(
+                        UUID.randomUUID(),
+                        mapping.getShortCode(),
+                        "http://localhost:8080/" + mapping.getShortCode(),
+                        mapping.getOriginalUrl(),
+                        0L,
+                        mapping.getExpiresAt(),
+                        Instant.now());
+            });
+
+            // When
+            PageResponse<UrlResponse> response = urlService.getAllUrls(page, size, userId);
+
+            // Then
+            assertNotNull(response);
+            assertEquals(2, response.content().size());
+            assertEquals(5, response.totalElements());
+            assertEquals(3, response.totalPages()); // 5 items / 2 per page = 3 pages
+            assertFalse(response.first());
+            assertFalse(response.last());
+            assertEquals(1, response.pageNumber());
+            assertEquals(2, response.pageSize());
+        }
+
+        @Test
+        @DisplayName("Should handle different page sizes")
+        void shouldHandleDifferentPageSizes() {
+            // Given
+            int page = 0;
+            int size = 10; // Larger page size
+            UUID userId = UUID.randomUUID();
+
+            // Create test URL mappings
+            java.util.List<UrlMapping> mappings = new java.util.ArrayList<>();
+            for (int i = 0; i < 10; i++) {
+                UrlMapping mapping = UrlMapping.builder()
+                        .shortCode("test" + i)
+                        .originalUrl("https://example" + i + ".com")
+                        .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                        .userId(userId)
+                        .build();
+                mappings.add(mapping);
+            }
+
+            // Mock the repository
+            Page<UrlMapping> mockPage = new PageImpl<>(mappings, PageRequest.of(page, size), 10);
+
+            when(repository.findByUserId(any(Pageable.class), eq(userId))).thenReturn(mockPage);
+            when(mapper.toResponse(any(UrlMapping.class), eq(baseUrl))).thenAnswer(invocation -> {
+                UrlMapping mapping = invocation.getArgument(0);
+                return new UrlResponse(
+                        UUID.randomUUID(),
+                        mapping.getShortCode(),
+                        "http://localhost:8080/" + mapping.getShortCode(),
+                        mapping.getOriginalUrl(),
+                        0L,
+                        mapping.getExpiresAt(),
+                        Instant.now());
+            });
+
+            // When
+            PageResponse<UrlResponse> response = urlService.getAllUrls(page, size, userId);
+
+            // Then
+            assertNotNull(response);
+            assertEquals(10, response.content().size());
+            assertEquals(10, response.totalElements());
+            assertEquals(1, response.totalPages());
+            assertTrue(response.first());
+            assertTrue(response.last());
+            assertEquals(0, response.pageNumber());
+            assertEquals(10, response.pageSize());
         }
     }
 }

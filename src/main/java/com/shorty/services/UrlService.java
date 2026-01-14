@@ -1,6 +1,7 @@
 package com.shorty.services;
 
 import com.shorty.dtos.requests.CreateUrlRequest;
+import com.shorty.dtos.responses.PageResponse;
 import com.shorty.dtos.responses.RedirectResponse;
 import com.shorty.dtos.responses.UrlResponse;
 import com.shorty.entities.UrlMapping;
@@ -15,6 +16,8 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +40,25 @@ public class UrlService {
 
     @Value("${app.url-expiration.default-hours:8760}")
     private int defaultExpirationHours;
+
+    @Transactional(readOnly = true)
+    public PageResponse<UrlResponse> getAllUrls(int page, int size, UUID userId) {
+        log.info("Getting all URLs for user ID: {}", userId);
+
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        var mappings = repository.findByUserId(pageRequest, userId);
+
+        return new PageResponse<>(
+                mappings.stream()
+                        .map(mapping -> mapper.toResponse(mapping, baseUrl))
+                        .toList(),
+                mappings.getNumber(),
+                mappings.getSize(),
+                mappings.getTotalElements(),
+                mappings.getTotalPages(),
+                mappings.isFirst(),
+                mappings.isLast());
+    }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public UrlResponse createShortUrl(CreateUrlRequest request, UUID userId) {

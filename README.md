@@ -11,6 +11,7 @@ A modern, feature-rich URL shortening service built with Spring Boot and Postgre
 - **URL Expiration**: Set expiration times for short URLs (optional)
 - **Click Tracking**: Monitor how many times each short URL has been accessed
 - **Redirect Management**: Handle redirects with proper HTTP status codes
+- **URL Listing**: Retrieve all URLs created by the authenticated user with pagination support
 
 ### Advanced Features
 
@@ -75,6 +76,7 @@ The application provides comprehensive OpenAPI documentation:
 
 | Method   | Path                       | Description              |
 |----------|----------------------------|--------------------------|
+| `GET`    | `/api/v1/urls`             | Get all URLs (paginated) |
 | `POST`   | `/api/v1/urls`             | Create a new short URL   |
 | `GET`    | `/api/v1/urls/{shortCode}` | Get URL details          |
 | `DELETE` | `/api/v1/urls/{shortCode}` | Delete a short URL       |
@@ -107,6 +109,12 @@ curl -X POST http://localhost:8080/api/v1/urls \
   }'
 ```
 
+**Get All URLs**:
+
+```bash
+curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" "http://localhost:8080/api/v1/urls?page=0&size=10"
+```
+
 **Get URL Details**:
 
 ```bash
@@ -135,6 +143,7 @@ curl -L http://localhost:8080/mycustom
 - **Atomic Operations**: Transactional database operations
 - **Concurrency Control**: Optimistic locking for high traffic
 - **User Isolation**: Each user can only access their own URLs
+- **Pagination**: Support for paginated retrieval of user URLs with customizable page size
 
 ### Error Handling
 

@@ -1,6 +1,7 @@
 package com.shorty.controllers;
 
 import com.shorty.dtos.requests.CreateUrlRequest;
+import com.shorty.dtos.responses.PageResponse;
 import com.shorty.dtos.responses.UrlResponse;
 import com.shorty.services.UrlService;
 import com.shorty.utils.SecurityUtils;
@@ -30,6 +31,33 @@ public class UrlController {
 
     private final UrlService urlService;
     private final SecurityUtils securityUtils;
+
+    @Operation(summary = "Get all URLs", description = "Retrieve a paginated list of all URLs")
+    @ApiResponses(
+            value = {
+                @ApiResponse(
+                        responseCode = "200",
+                        description = "Successfully retrieved list of URLs",
+                        content =
+                                @Content(
+                                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                        schema = @Schema(implementation = PageResponse.class))),
+                @ApiResponse(
+                        responseCode = "400",
+                        description = "Invalid request parameters",
+                        content =
+                                @Content(
+                                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                        schema = @Schema(implementation = ProblemDetail.class)))
+            })
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<PageResponse<UrlResponse>> getAllUrls(
+            @Parameter(description = "Page number to retrieve") @RequestParam(defaultValue = "0") Integer page,
+            @Parameter(description = "Number of items per page") @RequestParam(defaultValue = "10") Integer size) {
+        UUID userId = securityUtils.getCurrentUserId();
+        var response = urlService.getAllUrls(page, size, userId);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
 
     @Operation(
             summary = "Create a new short URL",

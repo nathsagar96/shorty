@@ -16,10 +16,10 @@ public record CreateUrlRequest(
                 String originalUrl,
         @Schema(
                         description = "Optional custom alias for the shortened URL",
-                        example = "mylink",
+                        example = "abc123",
                         requiredMode = Schema.RequiredMode.NOT_REQUIRED)
                 @Size(min = 3, max = 10, message = "Custom alias must be between 3 and 10 characters")
-                @Pattern(regexp = "^[a-zA-Z0-9]*$", message = "Custom alias can only contain alphanumeric characters")
+                @Pattern(regexp = "^[a-zA-Z0-9]+$", message = "Custom alias can only contain alphanumeric characters")
                 @JsonInclude(JsonInclude.Include.NON_NULL)
                 String customAlias,
         @Schema(

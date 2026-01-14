@@ -1,17 +1,20 @@
 package com.shorty.controllers;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.shorty.dtos.requests.CreateUrlRequest;
+import com.shorty.dtos.responses.PageResponse;
 import com.shorty.dtos.responses.UrlResponse;
 import com.shorty.exceptions.AliasAlreadyExistsException;
 import com.shorty.exceptions.UrlNotFoundException;
 import com.shorty.services.UrlService;
 import com.shorty.utils.SecurityUtils;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -225,6 +228,136 @@ class UrlControllerTest {
             mockMvc.perform(delete("/api/v1/urls/{shortCode}", shortCode)).andExpect(status().isNotFound());
 
             verify(urlService, times(1)).deleteShortUrl(shortCode, currentUserId);
+        }
+    }
+
+    @Nested
+    @DisplayName("Get All URLs Tests")
+    class GetAllUrlsTests {
+
+        @Test
+        @DisplayName("Should return 200 when getting all URLs with default pagination")
+        void shouldReturn200WhenGettingAllUrlsWithDefaultPagination() throws Exception {
+            // Given
+            UUID userId = UUID.randomUUID();
+            List<UrlResponse> urlResponses = List.of(
+                    new UrlResponse(
+                            UUID.randomUUID(),
+                            "abc123",
+                            "http://localhost:8080/abc123",
+                            "https://example.com",
+                            0L,
+                            Instant.now().plusSeconds(604800),
+                            Instant.now()),
+                    new UrlResponse(
+                            UUID.randomUUID(),
+                            "def456",
+                            "http://localhost:8080/def456",
+                            "https://google.com",
+                            5L,
+                            Instant.now().plusSeconds(604800),
+                            Instant.now()));
+
+            PageResponse<UrlResponse> expectedResponse = new PageResponse<>(urlResponses, 0, 10, 2, 1, true, true);
+
+            when(securityUtils.getCurrentUserId()).thenReturn(userId);
+            when(urlService.getAllUrls(anyInt(), anyInt(), any(UUID.class))).thenReturn(expectedResponse);
+
+            // When/Then
+            mockMvc.perform(get("/api/v1/urls").param("page", "0").param("size", "10"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.length()").value(2))
+                    .andExpect(jsonPath("$.content[0].shortCode").value("abc123"))
+                    .andExpect(jsonPath("$.content[1].shortCode").value("def456"))
+                    .andExpect(jsonPath("$.pageNumber").value(0))
+                    .andExpect(jsonPath("$.pageSize").value(10))
+                    .andExpect(jsonPath("$.totalElements").value(2))
+                    .andExpect(jsonPath("$.totalPages").value(1))
+                    .andExpect(jsonPath("$.first").value(true))
+                    .andExpect(jsonPath("$.last").value(true));
+
+            verify(urlService, times(1)).getAllUrls(anyInt(), anyInt(), any(UUID.class));
+        }
+
+        @Test
+        @DisplayName("Should return 200 when getting all URLs with custom pagination")
+        void shouldReturn200WhenGettingAllUrlsWithCustomPagination() throws Exception {
+            // Given
+            UUID userId = UUID.randomUUID();
+            List<UrlResponse> urlResponses = List.of(new UrlResponse(
+                    UUID.randomUUID(),
+                    "abc123",
+                    "http://localhost:8080/abc123",
+                    "https://example.com",
+                    0L,
+                    Instant.now().plusSeconds(604800),
+                    Instant.now()));
+
+            PageResponse<UrlResponse> expectedResponse = new PageResponse<>(urlResponses, 1, 5, 15, 3, false, false);
+
+            when(securityUtils.getCurrentUserId()).thenReturn(userId);
+            when(urlService.getAllUrls(anyInt(), anyInt(), any(UUID.class))).thenReturn(expectedResponse);
+
+            // When/Then
+            mockMvc.perform(get("/api/v1/urls").param("page", "1").param("size", "5"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.length()").value(1))
+                    .andExpect(jsonPath("$.pageNumber").value(1))
+                    .andExpect(jsonPath("$.pageSize").value(5))
+                    .andExpect(jsonPath("$.totalElements").value(15))
+                    .andExpect(jsonPath("$.totalPages").value(3));
+
+            verify(urlService, times(1)).getAllUrls(anyInt(), anyInt(), any(UUID.class));
+        }
+
+        @Test
+        @DisplayName("Should return 200 when getting all URLs with default parameters")
+        void shouldReturn200WhenGettingAllUrlsWithDefaultParameters() throws Exception {
+            // Given
+            UUID userId = UUID.randomUUID();
+            List<UrlResponse> urlResponses = List.of(new UrlResponse(
+                    UUID.randomUUID(),
+                    "abc123",
+                    "http://localhost:8080/abc123",
+                    "https://example.com",
+                    0L,
+                    Instant.now().plusSeconds(604800),
+                    Instant.now()));
+
+            PageResponse<UrlResponse> expectedResponse = new PageResponse<>(urlResponses, 0, 10, 1, 1, true, true);
+
+            when(securityUtils.getCurrentUserId()).thenReturn(userId);
+            when(urlService.getAllUrls(anyInt(), anyInt(), any(UUID.class))).thenReturn(expectedResponse);
+
+            // When/Then - no query parameters provided, should use defaults
+            mockMvc.perform(get("/api/v1/urls"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.length()").value(1))
+                    .andExpect(jsonPath("$.pageNumber").value(0))
+                    .andExpect(jsonPath("$.pageSize").value(10));
+
+            verify(urlService, times(1)).getAllUrls(anyInt(), anyInt(), any(UUID.class));
+        }
+
+        @Test
+        @DisplayName("Should return 200 when getting all URLs with empty result")
+        void shouldReturn200WhenGettingAllUrlsWithEmptyResult() throws Exception {
+            // Given
+            UUID userId = UUID.randomUUID();
+
+            PageResponse<UrlResponse> expectedResponse = new PageResponse<>(List.of(), 0, 10, 0, 0, true, true);
+
+            when(securityUtils.getCurrentUserId()).thenReturn(userId);
+            when(urlService.getAllUrls(anyInt(), anyInt(), any(UUID.class))).thenReturn(expectedResponse);
+
+            // When/Then
+            mockMvc.perform(get("/api/v1/urls"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.length()").value(0))
+                    .andExpect(jsonPath("$.totalElements").value(0))
+                    .andExpect(jsonPath("$.totalPages").value(0));
+
+            verify(urlService, times(1)).getAllUrls(anyInt(), anyInt(), any(UUID.class));
         }
     }
 }
