@@ -19,6 +19,7 @@ A modern, feature-rich URL shortening service built with Spring Boot and Postgre
 - **Transaction Support**: ACID-compliant operations for data integrity
 - **OpenAPI Documentation**: Built-in API documentation with Swagger UI
 - **Health Monitoring**: Spring Actuator endpoints for system monitoring
+- **User Isolation**: Each user can only access their own URLs
 
 ## 📦 Technologies
 
@@ -27,7 +28,8 @@ A modern, feature-rich URL shortening service built with Spring Boot and Postgre
 - **API Documentation**: SpringDoc OpenAPI 3.0
 - **Build Tool**: Maven with Spotless code formatting
 - **Code Generation**: MapStruct for DTO mapping
-- **Containerization**: Docker Compose for PostgreSQL
+- **Containerization**: Docker Compose for PostgreSQL and Keycloak
+- **Authentication**: OAuth2/OIDC with Keycloak
 
 ## 🚀 Getting Started
 
@@ -35,7 +37,7 @@ A modern, feature-rich URL shortening service built with Spring Boot and Postgre
 
 - Java 25 or higher
 - Maven 3.9+
-- Docker (for PostgreSQL)
+- Docker (for PostgreSQL and Keycloak)
 - PostgreSQL 18 (or use Docker)
 
 ### Installation
@@ -47,7 +49,7 @@ A modern, feature-rich URL shortening service built with Spring Boot and Postgre
    cd shorty
    ```
 
-2. **Start PostgreSQL with Docker (optional)**:
+2. **Start services with Docker Compose**:
 
    ```bash
    docker-compose up -d
@@ -63,6 +65,7 @@ A modern, feature-rich URL shortening service built with Spring Boot and Postgre
    - API: `http://localhost:8080`
    - Swagger UI: `http://localhost:8080/swagger-ui.html`
    - Actuator: `http://localhost:8080/actuator`
+   - Keycloak Admin Console: `http://localhost:9090/admin` (admin/admin)
 
 ## 📖 API Documentation
 
@@ -77,6 +80,18 @@ The application provides comprehensive OpenAPI documentation:
 | `DELETE` | `/api/v1/urls/{shortCode}` | Delete a short URL       |
 | `GET`    | `/{shortCode}`             | Redirect to original URL |
 
+### Authentication
+
+All API endpoints except public redirects (`/{shortCode}`) require authentication via Bearer Token.
+
+To obtain a token from Keycloak:
+
+```bash
+curl -X POST http://localhost:9090/realms/shorty/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=testuser&password=password&grant_type=password&client_id=shorty-app"
+```
+
 ### Example Requests
 
 **Create Short URL**:
@@ -84,6 +99,7 @@ The application provides comprehensive OpenAPI documentation:
 ```bash
 curl -X POST http://localhost:8080/api/v1/urls \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
     "originalUrl": "https://example.com/very/long/url",
     "customAlias": "mycustom",
@@ -94,7 +110,7 @@ curl -X POST http://localhost:8080/api/v1/urls \
 **Get URL Details**:
 
 ```bash
-curl http://localhost:8080/api/v1/urls/mycustom
+curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" http://localhost:8080/api/v1/urls/mycustom
 ```
 
 **Redirect**:
@@ -118,6 +134,7 @@ curl -L http://localhost:8080/mycustom
 - **Click Tracking**: Incremental counter for each redirect
 - **Atomic Operations**: Transactional database operations
 - **Concurrency Control**: Optimistic locking for high traffic
+- **User Isolation**: Each user can only access their own URLs
 
 ### Error Handling
 
@@ -127,9 +144,13 @@ curl -L http://localhost:8080/mycustom
 
 ## 🛡️ Security
 
+- **OAuth2/OIDC Authentication**: Integrated with Keycloak for user authentication
+- **JWT Authorization**: Access tokens validated via Keycloak's JWK set
+- **Role-Based Access Control**: API endpoints secured with method-level security
 - **Input Validation**: Comprehensive validation for all API inputs
 - **Secure Random**: Cryptographically secure short code generation
 - **SQL Injection Protection**: JPA parameterized queries
+- **User Isolation**: Each user can only access their own URLs
 
 ## 📊 Monitoring
 

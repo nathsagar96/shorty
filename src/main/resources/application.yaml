@@ -25,6 +25,13 @@ spring:
   jackson:
     default-property-inclusion: non_null
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:9090/realms/shorty}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:9090/realms/shorty/protocol/openid-connect/certs}
+
 app:
   base-url: ${BASE_URL:http://localhost:8080}
   retry:
@@ -53,6 +60,7 @@ logging:
     com.shorty: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.security: DEBUG
 
 management:
   endpoints:
@@ -74,9 +82,6 @@ spring:
       on-profile: prod
 
   datasource:
-    url: ${DATABASE_URL}
-    username: ${DATABASE_USERNAME}
-    password: ${DATABASE_PASSWORD}
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
@@ -96,6 +101,7 @@ logging:
     root: WARN
     com.shorty: INFO
     org.hibernate.SQL: WARN
+    org.springframework.security: WARN
 
 springdoc:
   api-docs:

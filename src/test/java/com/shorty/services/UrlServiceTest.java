@@ -97,7 +97,7 @@ class UrlServiceTest {
             when(mapper.toResponse(mapping, baseUrl)).thenReturn(expectedResponse);
 
             // When
-            UrlResponse response = urlService.createShortUrl(request);
+            UrlResponse response = urlService.createShortUrl(request, UUID.randomUUID());
 
             // Then
             assertNotNull(response);
@@ -134,7 +134,7 @@ class UrlServiceTest {
             when(mapper.toResponse(mapping, baseUrl)).thenReturn(expectedResponse);
 
             // When
-            UrlResponse response = urlService.createShortUrl(request);
+            UrlResponse response = urlService.createShortUrl(request, UUID.randomUUID());
 
             // Then
             assertNotNull(response);
@@ -154,7 +154,7 @@ class UrlServiceTest {
             when(codeGenerator.isValidAlias(invalidAlias)).thenReturn(false);
 
             // When/Then
-            assertThrows(IllegalArgumentException.class, () -> urlService.createShortUrl(request));
+            assertThrows(IllegalArgumentException.class, () -> urlService.createShortUrl(request, UUID.randomUUID()));
             verify(codeGenerator, times(1)).isValidAlias(invalidAlias);
             verify(repository, never()).save(any(UrlMapping.class));
         }
@@ -170,7 +170,8 @@ class UrlServiceTest {
             when(repository.existsByShortCode(existingAlias)).thenReturn(true);
 
             // When/Then
-            assertThrows(AliasAlreadyExistsException.class, () -> urlService.createShortUrl(request));
+            assertThrows(
+                    AliasAlreadyExistsException.class, () -> urlService.createShortUrl(request, UUID.randomUUID()));
             verify(repository, times(1)).existsByShortCode(existingAlias);
             verify(repository, never()).save(any(UrlMapping.class));
         }
@@ -186,7 +187,7 @@ class UrlServiceTest {
             when(repository.existsByShortCode(collidingCode)).thenReturn(true);
 
             // When/Then
-            assertThrows(IllegalStateException.class, () -> urlService.createShortUrl(request));
+            assertThrows(IllegalStateException.class, () -> urlService.createShortUrl(request, UUID.randomUUID()));
             verify(codeGenerator, times(maxRetryAttempts)).generate();
             verify(repository, times(maxRetryAttempts)).existsByShortCode(collidingCode);
             verify(repository, never()).save(any(UrlMapping.class));
@@ -265,11 +266,13 @@ class UrlServiceTest {
         void shouldGetUrlDetailsWhenExists() {
             // Given
             String shortCode = "details123";
+            UUID userId = UUID.randomUUID();
             UrlMapping mapping = UrlMapping.builder()
                     .shortCode(shortCode)
                     .originalUrl("https://example.com")
                     .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
                     .clickCount(5L)
+                    .userId(userId)
                     .build();
             UrlResponse expectedResponse = new UrlResponse(
                     UUID.randomUUID(),
@@ -284,7 +287,7 @@ class UrlServiceTest {
             when(mapper.toResponse(mapping, baseUrl)).thenReturn(expectedResponse);
 
             // When
-            UrlResponse response = urlService.getUrlDetails(shortCode);
+            UrlResponse response = urlService.getUrlDetails(shortCode, userId);
 
             // Then
             assertNotNull(response);
@@ -302,7 +305,8 @@ class UrlServiceTest {
             when(repository.findByShortCode(nonExistentCode)).thenReturn(Optional.empty());
 
             // When/Then
-            assertThrows(UrlNotFoundException.class, () -> urlService.getUrlDetails(nonExistentCode));
+            assertThrows(
+                    UrlNotFoundException.class, () -> urlService.getUrlDetails(nonExistentCode, UUID.randomUUID()));
         }
     }
 
@@ -315,16 +319,18 @@ class UrlServiceTest {
         void shouldDeleteShortUrlWhenExists() {
             // Given
             String shortCode = "delete123";
+            UUID userId = UUID.randomUUID();
             UrlMapping mapping = UrlMapping.builder()
                     .shortCode(shortCode)
                     .originalUrl("https://example.com")
                     .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                    .userId(userId)
                     .build();
 
             when(repository.findByShortCode(shortCode)).thenReturn(Optional.of(mapping));
 
             // When
-            assertDoesNotThrow(() -> urlService.deleteShortUrl(shortCode));
+            assertDoesNotThrow(() -> urlService.deleteShortUrl(shortCode, userId));
 
             // Then
             verify(repository, times(1)).delete(mapping);
@@ -339,7 +345,8 @@ class UrlServiceTest {
             when(repository.findByShortCode(nonExistentCode)).thenReturn(Optional.empty());
 
             // When/Then
-            assertThrows(UrlNotFoundException.class, () -> urlService.deleteShortUrl(nonExistentCode));
+            assertThrows(
+                    UrlNotFoundException.class, () -> urlService.deleteShortUrl(nonExistentCode, UUID.randomUUID()));
             verify(repository, never()).delete(any(UrlMapping.class));
         }
     }
@@ -366,7 +373,7 @@ class UrlServiceTest {
                             .build());
 
             // When
-            Runnable task = () -> urlService.createShortUrl(request);
+            Runnable task = () -> urlService.createShortUrl(request, UUID.randomUUID());
 
             Thread thread1 = new Thread(task);
             Thread thread2 = new Thread(task);
@@ -380,6 +387,238 @@ class UrlServiceTest {
             // Then - At least one should succeed, the other should handle collision
             verify(repository, atLeast(1)).save(any(UrlMapping.class));
             verify(codeGenerator, atLeast(1)).generate();
+        }
+    }
+
+    @Nested
+    @DisplayName("User Authorization Tests")
+    class UserAuthorizationTests {
+
+        @Test
+        @DisplayName("Should throw exception when user ID mismatch in getUrlDetails")
+        void shouldThrowExceptionWhenUserIdMismatchInGetDetails() {
+            // Given
+            String shortCode = "test123";
+            UUID ownerId = UUID.randomUUID();
+            UUID differentUserId = UUID.randomUUID();
+
+            UrlMapping mapping = UrlMapping.builder()
+                    .shortCode(shortCode)
+                    .originalUrl("https://example.com")
+                    .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                    .userId(ownerId)
+                    .build();
+
+            when(repository.findByShortCode(shortCode)).thenReturn(Optional.of(mapping));
+
+            // When/Then
+            assertThrows(UrlNotFoundException.class, () -> urlService.getUrlDetails(shortCode, differentUserId));
+            verify(repository, times(1)).findByShortCode(shortCode);
+        }
+
+        @Test
+        @DisplayName("Should throw exception when user ID mismatch in deleteShortUrl")
+        void shouldThrowExceptionWhenUserIdMismatchInDelete() {
+            // Given
+            String shortCode = "test123";
+            UUID ownerId = UUID.randomUUID();
+            UUID differentUserId = UUID.randomUUID();
+
+            UrlMapping mapping = UrlMapping.builder()
+                    .shortCode(shortCode)
+                    .originalUrl("https://example.com")
+                    .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                    .userId(ownerId)
+                    .build();
+
+            when(repository.findByShortCode(shortCode)).thenReturn(Optional.of(mapping));
+
+            // When/Then
+            assertThrows(UrlNotFoundException.class, () -> urlService.deleteShortUrl(shortCode, differentUserId));
+            verify(repository, times(1)).findByShortCode(shortCode);
+            verify(repository, never()).delete(any(UrlMapping.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("Expiration Logic Tests")
+    class ExpirationLogicTests {
+
+        @Test
+        @DisplayName("Should use custom expiration time when provided")
+        void shouldUseCustomExpirationTime() {
+            // Given
+            int customExpirationHours = 24;
+            CreateUrlRequest request = new CreateUrlRequest("https://example.com", null, customExpirationHours);
+            String shortCode = "customExp";
+            Instant expectedExpiration = Instant.now().plusSeconds(customExpirationHours * 3600L);
+
+            UrlMapping mapping = UrlMapping.builder()
+                    .shortCode(shortCode)
+                    .originalUrl("https://example.com")
+                    .expiresAt(expectedExpiration)
+                    .build();
+
+            UrlResponse expectedResponse = new UrlResponse(
+                    UUID.randomUUID(),
+                    shortCode,
+                    "http://localhost:8080/" + shortCode,
+                    "https://example.com",
+                    0L,
+                    expectedExpiration,
+                    Instant.now());
+
+            when(codeGenerator.generate()).thenReturn(shortCode);
+            when(repository.existsByShortCode(shortCode)).thenReturn(false);
+            when(repository.save(any(UrlMapping.class))).thenReturn(mapping);
+            when(mapper.toResponse(mapping, baseUrl)).thenReturn(expectedResponse);
+
+            // When
+            UrlResponse response = urlService.createShortUrl(request, UUID.randomUUID());
+
+            // Then
+            assertNotNull(response);
+            assertEquals(expectedResponse.shortUrl(), response.shortUrl());
+            verify(repository, times(1)).save(any(UrlMapping.class));
+        }
+
+        @Test
+        @DisplayName("Should use default expiration time when not provided")
+        void shouldUseDefaultExpirationTime() {
+            // Given
+            CreateUrlRequest request = new CreateUrlRequest("https://example.com", null, null);
+            String shortCode = "defaultExp";
+            Instant expectedExpiration = Instant.now().plusSeconds(8760 * 3600L); // 1 year
+
+            UrlMapping mapping = UrlMapping.builder()
+                    .shortCode(shortCode)
+                    .originalUrl("https://example.com")
+                    .expiresAt(expectedExpiration)
+                    .build();
+
+            UrlResponse expectedResponse = new UrlResponse(
+                    UUID.randomUUID(),
+                    shortCode,
+                    "http://localhost:8080/" + shortCode,
+                    "https://example.com",
+                    0L,
+                    expectedExpiration,
+                    Instant.now());
+
+            when(codeGenerator.generate()).thenReturn(shortCode);
+            when(repository.existsByShortCode(shortCode)).thenReturn(false);
+            when(repository.save(any(UrlMapping.class))).thenReturn(mapping);
+            when(mapper.toResponse(mapping, baseUrl)).thenReturn(expectedResponse);
+
+            // When
+            UrlResponse response = urlService.createShortUrl(request, UUID.randomUUID());
+
+            // Then
+            assertNotNull(response);
+            assertEquals(expectedResponse.shortUrl(), response.shortUrl());
+            verify(repository, times(1)).save(any(UrlMapping.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("Edge Case Tests")
+    class EdgeCaseTests {
+
+        @Test
+        @DisplayName("Should handle very long URLs")
+        void shouldHandleVeryLongUrls() {
+            // Given
+            String longUrl = "https://example.com/" + "a".repeat(2000);
+            CreateUrlRequest request = new CreateUrlRequest(longUrl, null, null);
+            String shortCode = "longUrl";
+
+            UrlMapping mapping = UrlMapping.builder()
+                    .shortCode(shortCode)
+                    .originalUrl(longUrl)
+                    .expiresAt(Instant.now().plusSeconds(8760 * 3600L))
+                    .build();
+
+            UrlResponse expectedResponse = new UrlResponse(
+                    UUID.randomUUID(),
+                    shortCode,
+                    "http://localhost:8080/" + shortCode,
+                    longUrl,
+                    0L,
+                    Instant.now().plusSeconds(8760 * 3600L),
+                    Instant.now());
+
+            when(codeGenerator.generate()).thenReturn(shortCode);
+            when(repository.existsByShortCode(shortCode)).thenReturn(false);
+            when(repository.save(any(UrlMapping.class))).thenReturn(mapping);
+            when(mapper.toResponse(mapping, baseUrl)).thenReturn(expectedResponse);
+
+            // When
+            UrlResponse response = urlService.createShortUrl(request, UUID.randomUUID());
+
+            // Then
+            assertNotNull(response);
+            assertEquals(expectedResponse.shortUrl(), response.shortUrl());
+            assertEquals(longUrl, response.originalUrl());
+        }
+
+        @Test
+        @DisplayName("Should handle URLs with special characters")
+        void shouldHandleUrlsWithSpecialCharacters() {
+            // Given
+            String urlWithSpecialChars = "https://example.com/path?param=value&other=test#fragment";
+            CreateUrlRequest request = new CreateUrlRequest(urlWithSpecialChars, null, null);
+            String shortCode = "specialChars";
+
+            UrlMapping mapping = UrlMapping.builder()
+                    .shortCode(shortCode)
+                    .originalUrl(urlWithSpecialChars)
+                    .expiresAt(Instant.now().plusSeconds(8760 * 3600L))
+                    .build();
+
+            UrlResponse expectedResponse = new UrlResponse(
+                    UUID.randomUUID(),
+                    shortCode,
+                    "http://localhost:8080/" + shortCode,
+                    urlWithSpecialChars,
+                    0L,
+                    Instant.now().plusSeconds(8760 * 3600L),
+                    Instant.now());
+
+            when(codeGenerator.generate()).thenReturn(shortCode);
+            when(repository.existsByShortCode(shortCode)).thenReturn(false);
+            when(repository.save(any(UrlMapping.class))).thenReturn(mapping);
+            when(mapper.toResponse(mapping, baseUrl)).thenReturn(expectedResponse);
+
+            // When
+            UrlResponse response = urlService.createShortUrl(request, UUID.randomUUID());
+
+            // Then
+            assertNotNull(response);
+            assertEquals(expectedResponse.shortUrl(), response.shortUrl());
+            assertEquals(urlWithSpecialChars, response.originalUrl());
+        }
+
+        @Test
+        @DisplayName("Should handle case sensitivity in short codes")
+        void shouldHandleCaseSensitivityInShortCodes() {
+            // Given
+            String shortCode = "Test123";
+            String shortCodeLower = "test123";
+            UrlMapping mapping = UrlMapping.builder()
+                    .shortCode(shortCode)
+                    .originalUrl("https://example.com")
+                    .expiresAt(Instant.now().plusSeconds(8760 * 3600L))
+                    .userId(UUID.randomUUID())
+                    .build();
+
+            when(repository.findByShortCodeForUpdate(shortCode)).thenReturn(Optional.of(mapping));
+            when(repository.findByShortCodeForUpdate(shortCodeLower)).thenReturn(Optional.empty());
+
+            // When/Then - Original case should work
+            assertDoesNotThrow(() -> urlService.resolveAndTrack(shortCode));
+
+            // When/Then - Different case should fail
+            assertThrows(UrlNotFoundException.class, () -> urlService.resolveAndTrack(shortCodeLower));
         }
     }
 }

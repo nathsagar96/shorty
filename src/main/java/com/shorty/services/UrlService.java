@@ -11,6 +11,7 @@ import com.shorty.mappers.UrlMapper;
 import com.shorty.repositories.UrlMappingRepository;
 import com.shorty.utils.ShortCodeGenerator;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,8 +39,8 @@ public class UrlService {
     private int defaultExpirationHours;
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public UrlResponse createShortUrl(CreateUrlRequest request) {
-        log.info("Creating short URL for: {}", request.originalUrl());
+    public UrlResponse createShortUrl(CreateUrlRequest request, UUID userId) {
+        log.info("Creating short URL for: {} with user ID: {}", request.originalUrl(), userId);
 
         String shortCode;
 
@@ -61,10 +62,11 @@ public class UrlService {
                 .shortCode(shortCode)
                 .originalUrl(request.originalUrl())
                 .expiresAt(calculateDefaultExpirationTime(request))
+                .userId(userId)
                 .build();
 
         UrlMapping saved = repository.save(mapping);
-        log.info("Short URL created successfully: {}", shortCode);
+        log.info("Short URL created successfully: {} for user: {}", shortCode, userId);
         return mapper.toResponse(saved, baseUrl);
     }
 
@@ -90,22 +92,30 @@ public class UrlService {
     }
 
     @Transactional(readOnly = true)
-    public UrlResponse getUrlDetails(String shortCode) {
+    public UrlResponse getUrlDetails(String shortCode, UUID userId) {
         UrlMapping mapping = repository
                 .findByShortCode(shortCode)
                 .orElseThrow(() -> new UrlNotFoundException("Short URL not found: " + shortCode));
+
+        if (!mapping.getUserId().equals(userId)) {
+            throw new UrlNotFoundException("Short URL not found: " + shortCode);
+        }
 
         return mapper.toResponse(mapping, baseUrl);
     }
 
     @Transactional
-    public void deleteShortUrl(String shortCode) {
+    public void deleteShortUrl(String shortCode, UUID userId) {
         UrlMapping mapping = repository
                 .findByShortCode(shortCode)
                 .orElseThrow(() -> new UrlNotFoundException("Short URL not found: " + shortCode));
 
+        if (!mapping.getUserId().equals(userId)) {
+            throw new UrlNotFoundException("Short URL not found: " + shortCode);
+        }
+
         repository.delete(mapping);
-        log.info("Short URL deleted: {}", shortCode);
+        log.info("Short URL deleted: {} by user: {}", shortCode, userId);
     }
 
     private String generateUniqueShortCode() {

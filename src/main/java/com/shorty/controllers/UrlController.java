@@ -3,6 +3,7 @@ package com.shorty.controllers;
 import com.shorty.dtos.requests.CreateUrlRequest;
 import com.shorty.dtos.responses.UrlResponse;
 import com.shorty.services.UrlService;
+import com.shorty.utils.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 public class UrlController {
 
     private final UrlService urlService;
+    private final SecurityUtils securityUtils;
 
     @Operation(
             summary = "Create a new short URL",
@@ -58,7 +61,8 @@ public class UrlController {
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<UrlResponse> createShortUrl(@Valid @RequestBody CreateUrlRequest request) {
         log.info("Received request to create short URL");
-        UrlResponse response = urlService.createShortUrl(request);
+        UUID userId = securityUtils.getCurrentUserId();
+        UrlResponse response = urlService.createShortUrl(request, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -87,7 +91,8 @@ public class UrlController {
             @Parameter(description = "The short code to retrieve details for", required = true) @PathVariable
                     String shortCode) {
         log.debug("Retrieving details for short code: {}", shortCode);
-        UrlResponse response = urlService.getUrlDetails(shortCode);
+        UUID userId = securityUtils.getCurrentUserId();
+        UrlResponse response = urlService.getUrlDetails(shortCode, userId);
         return ResponseEntity.ok(response);
     }
 
@@ -107,7 +112,8 @@ public class UrlController {
     public ResponseEntity<Void> deleteShortUrl(
             @Parameter(description = "The short code to delete", required = true) @PathVariable String shortCode) {
         log.info("Deleting short code: {}", shortCode);
-        urlService.deleteShortUrl(shortCode);
+        UUID userId = securityUtils.getCurrentUserId();
+        urlService.deleteShortUrl(shortCode, userId);
         return ResponseEntity.noContent().build();
     }
 }

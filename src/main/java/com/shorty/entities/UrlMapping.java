@@ -19,7 +19,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
         indexes = {
             @Index(name = "idx_short_code", columnList = "short_code", unique = true),
             @Index(name = "idx_expires_at", columnList = "expires_at"),
-            @Index(name = "idx_created_at", columnList = "created_at")
+            @Index(name = "idx_created_at", columnList = "created_at"),
+            @Index(name = "idx_user_id", columnList = "user_id")
         })
 @EntityListeners(AuditingEntityListener.class)
 public class UrlMapping {
@@ -53,6 +54,9 @@ public class UrlMapping {
     @LastModifiedDate
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
     public boolean isExpired() {
         return expiresAt != null && Instant.now().isAfter(expiresAt);

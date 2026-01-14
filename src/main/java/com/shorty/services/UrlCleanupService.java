@@ -15,7 +15,7 @@ public class UrlCleanupService {
 
     private final UrlMappingRepository repository;
 
-    @Scheduled(cron = "${app.cleanup.cron:0 0 * * * *}")
+    @Scheduled(cron = "${app.cleanup.cron:0 0 0 * * ?}")
     @Transactional
     public void cleanupExpiredUrls() {
         log.info("Starting cleanup of expired URLs");
